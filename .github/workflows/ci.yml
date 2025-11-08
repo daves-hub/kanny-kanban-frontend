@@ -1,0 +1,32 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build_and_test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      - name: Install deps
+        run: pnpm install
+        working-directory: ./frontend
+      - name: Build
+        run: pnpm build
+        working-directory: ./frontend
+      - name: Run tests
+        run: pnpm test
+        working-directory: ./frontend
+
+  deploy:
+    needs: build_and_test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Vercel
+        run: echo "Use Vercel GitHub integration or Vercel CLI here"

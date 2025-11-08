@@ -10,7 +10,6 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { AddTaskModal } from "@/components/add-task-modal";
 import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import { DeleteColumn } from "@/components/delete-column";
-import { Menu, Settings, User } from "lucide-react";
 import { DragProvider } from "@/contexts/drag-context";
 
 // Mock data for demonstration
@@ -59,7 +58,7 @@ const initialTasks: Task[] = [
   },
 ];
 
-export default function DashboardPage() {
+export default function BoardPage() {
   const [lists] = useState<List[]>(initialLists);
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [addingToListId, setAddingToListId] = useState<number | null>(null);
@@ -211,43 +210,6 @@ export default function DashboardPage() {
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex min-h-screen flex-col bg-gray-50">
-      {/* Header */}
-      <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <div className="size-6 rounded-full bg-primary" />
-            <div className="size-6 -ml-3 rounded-full bg-primary/70" />
-          </div>
-          <h1 className="text-xl font-bold">Kanny</h1>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Ejemen Iboi</span>
-          <div className="flex size-8 items-center justify-center rounded-full bg-gray-200">
-            <User className="size-4" />
-          </div>
-        </div>
-      </header>
-
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside className="flex w-16 flex-col items-center justify-between border-r bg-white py-4">
-          <button className="rounded-lg p-2 transition-colors hover:bg-gray-100">
-            <Menu className="size-6" />
-          </button>
-
-          <div className="flex flex-col items-center gap-4">
-            <button className="rounded-lg p-2 transition-colors hover:bg-gray-100">
-              <Settings className="size-6" />
-            </button>
-            <div className="flex size-8 items-center justify-center rounded-full bg-gray-200">
-              <User className="size-4" />
-            </div>
-          </div>
-        </aside>
-
-        {/* Main Content */}
         <main className="flex-1 overflow-x-auto p-6">
           <div className="flex gap-6">
             {lists.map((list) => {
@@ -312,7 +274,6 @@ export default function DashboardPage() {
             <DeleteColumn isDraggingOver={overId === "delete-zone"} />
           </div>
         </main>
-      </div>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmationModal
@@ -335,7 +296,6 @@ export default function DashboardPage() {
           </div>
         ) : null}
       </DragOverlay>
-    </div>
     </DndContext>
     </DragProvider>
   );

@@ -7,11 +7,22 @@ export type User = {
   createdAt: ISODateString;
 };
 
+export type Project = {
+  id: number;
+  name: string;
+  description: string | null;
+  ownerId: number;
+  createdAt: ISODateString;
+  updatedAt: ISODateString;
+};
+
 export type Board = {
   id: number;
   name: string;
   ownerId: number;
+  projectId: number | null; // null for standalone boards
   createdAt: ISODateString;
+  updatedAt: ISODateString;
 };
 
 export type List = {
@@ -37,6 +48,11 @@ export type ListWithTasks = List & {
 
 export type BoardWithLists = Board & {
   lists: ListWithTasks[];
+};
+
+export type ProjectWithBoards = Project & {
+  boards: Board[];
+  boardCount?: number;
 };
 
 export type EntityWithId = {
