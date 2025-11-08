@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { PlusIcon } from "lucide-react";
 
 type AddTaskModalProps = {
   listId: number;
@@ -25,17 +26,16 @@ export function AddTaskModal({ onAdd, onClose }: AddTaskModalProps) {
   };
 
   return (
-    <div className="border-dashed-blue bg-white p-5 shadow-sm">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="flex flex-col justify-end space-y-4">
+      <div className="border-dashed-blue bg-blue-50/50 p-5 shadow-sm space-y-4">
         <div className="space-y-2">
           <Label htmlFor="task-title">Email</Label>
           <Input
             id="task-title"
-            type="email"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Enter email"
-            className="h-10 rounded-full"
+            placeholder="Enter Title"
+            className="h-10 bg-white"
             autoFocus
           />
         </div>
@@ -47,24 +47,25 @@ export function AddTaskModal({ onAdd, onClose }: AddTaskModalProps) {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Type your message here"
+            className="bg-white"
             rows={4}
           />
         </div>
 
-        <div className="flex gap-3">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onClose}
-            className="flex-1"
-          >
-            Close
-          </Button>
-          <Button type="submit" className="flex-1">
-            Add +
-          </Button>
-        </div>
-      </form>
-    </div>
+      </div>
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          variant="ghost"
+          onClick={onClose}
+          className="flex-1"
+        >
+          Close
+        </Button>
+        <Button type="submit" className="flex-1">
+          Add <PlusIcon className="h-5 w-5" />
+        </Button>
+      </div>
+    </form>
   );
 }
