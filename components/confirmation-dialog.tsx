@@ -24,7 +24,7 @@ export function ConfirmationDialog({
 }: ConfirmationDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md border-dashed-red">
         <DialogHeader>
           <DialogTitle className="text-center text-base">
             {title}

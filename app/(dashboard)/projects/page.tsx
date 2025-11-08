@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Project } from "@/types/kanban";
 import { FolderKanban, Search, ArrowLeft, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 // Mock data
 const mockProjects: Project[] = [
@@ -54,11 +55,10 @@ export default function ProjectsPage() {
       <div className="border-b bg-white px-6 py-4">
         <div className="mx-auto max-w-7xl">
           <div className="flex items-center gap-4">
-            <Link
-              href="/board"
-              className="rounded-lg p-2 transition-colors hover:bg-gray-100"
-            >
-              <ArrowLeft className="size-5" />
+            <Link href="/">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="size-5" />
+              </Button>
             </Link>
             <div className="flex-1">
               <h1 className="text-2xl font-bold">All Projects</h1>
@@ -76,7 +76,7 @@ export default function ProjectsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search projects..."
-              className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              className="w-full rounded-full border border-gray-300 py-2 pl-10 pr-4 transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function ProjectsPage() {
                     className="group relative mb-6 break-inside-avoid"
                   >
                     <Link
-                      href={`/project/${project.id}`}
+                      href={`/projects/${project.id}`}
                       className="block rounded-lg border bg-white p-5 transition-all hover:shadow-md"
                     >
                       <div className="mb-3 flex items-start justify-between gap-2">

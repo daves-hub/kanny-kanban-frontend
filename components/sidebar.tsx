@@ -96,16 +96,30 @@ export function Sidebar({
                       isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
                     )}
                   >
-                    <button
-                      onClick={() => toggleProject(project.id)}
-                      className="flex flex-1 items-center gap-2 text-left"
+                    <Link
+                      href={`/projects/${project.id}`}
+                      className="flex flex-1 items-center gap-2"
+                      onClick={(e) => {
+                        if ((e.target as HTMLElement).closest('button')) {
+                          e.preventDefault();
+                        }
+                      }}
                     >
-                      <ChevronRight
-                        className={cn(
-                          "size-4 shrink-0 transition-transform",
-                          isExpanded && "rotate-90"
-                        )}
-                      />
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleProject(project.id);
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <ChevronRight
+                          className={cn(
+                            "size-4 shrink-0 transition-transform",
+                            isExpanded && "rotate-90"
+                          )}
+                        />
+                      </button>
                       <FolderKanban className="size-4 shrink-0" />
                       <span className="flex-1 truncate font-medium">
                         {project.name}
@@ -113,15 +127,18 @@ export function Sidebar({
                       <span className="text-xs text-gray-500">
                         {projectBoards.length}
                       </span>
-                    </button>
+                    </Link>
 
                     <div className="relative">
                       <button
-                        onClick={() => setActiveMenu(
-                          activeMenu?.type === 'project' && activeMenu?.id === project.id 
-                            ? null 
-                            : { type: 'project', id: project.id }
-                        )}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveMenu(
+                            activeMenu?.type === 'project' && activeMenu?.id === project.id 
+                              ? null 
+                              : { type: 'project', id: project.id }
+                          );
+                        }}
                         className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
                       >
                         <MoreHorizontal className="size-3.5" />
@@ -130,7 +147,8 @@ export function Sidebar({
                       {activeMenu?.type === 'project' && activeMenu?.id === project.id && (
                         <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border bg-white py-1 shadow-lg">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               onEditProject(project);
                               setActiveMenu(null);
                             }}
@@ -140,7 +158,8 @@ export function Sidebar({
                             Edit
                           </button>
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               onDeleteProject(project);
                               setActiveMenu(null);
                             }}

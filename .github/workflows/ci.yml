@@ -29,4 +29,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to Vercel
-        run: echo "Use Vercel GitHub integration or Vercel CLI here"
+        run: echo "Using Vercel GitHub integration"

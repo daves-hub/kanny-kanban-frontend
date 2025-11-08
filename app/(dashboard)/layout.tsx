@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
 import { Sidebar } from "@/components/sidebar";
 import { ProjectModal } from "@/components/project-modal";
@@ -60,6 +61,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
   const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [boards, setBoards] = useState<Board[]>(mockBoards);
   
@@ -70,6 +72,14 @@ export default function DashboardLayout({
   const [editingBoard, setEditingBoard] = useState<Board | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [deletingBoard, setDeletingBoard] = useState<Board | null>(null);
+
+  // Determine current board and project from URL
+  const currentBoardId = pathname?.match(/\/board\/(\d+)/)?.[1] 
+    ? parseInt(pathname.match(/\/board\/(\d+)/)![1]) 
+    : undefined;
+  const currentProjectId = pathname?.match(/\/projects\/(\d+)/)?.[1]
+    ? parseInt(pathname.match(/\/projects\/(\d+)/)![1])
+    : undefined;
 
   // Project handlers
   const handleSaveProject = (name: string, description: string) => {
@@ -146,11 +156,11 @@ export default function DashboardLayout({
       {/* Header */}
       <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
-            <div className="size-6 rounded-full bg-primary" />
-            <div className="size-6 -ml-3 rounded-full bg-primary/70" />
+          <div className="flex items-end">
+            <div className="size-8 rounded-full border-2 border-white bg-primary z-1" />
+            <div className="size-10 -ml-2 rounded-full bg-primary" />
           </div>
-          <h1 className="text-xl font-bold">Kanny</h1>
+          <h1 className="text-2xl font-bold">Kanny</h1>
         </div>
 
         <div className="flex items-center gap-2">
@@ -166,7 +176,8 @@ export default function DashboardLayout({
         <Sidebar
           projects={projects}
           boards={boards}
-          currentBoardId={1}
+          currentBoardId={currentBoardId}
+          currentProjectId={currentProjectId}
           onNewProject={() => setIsCreatingProject(true)}
           onNewBoard={() => setIsCreatingBoard(true)}
           onEditProject={(project) => setEditingProject(project)}

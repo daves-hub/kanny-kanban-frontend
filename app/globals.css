@@ -148,12 +148,17 @@
 
 @layer utilities {
   .border-dashed-blue {
-    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' stroke='%239ABAFF' stroke-width='2' stroke-dasharray='8,8' stroke-linecap='round'/%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' stroke='%239ABAFF' stroke-width='3' stroke-dasharray='8,8' stroke-linecap='round'/%3e%3c/svg%3e");
+    border-radius: 0.5rem;
+  }
+
+  .border-dashed-red {
+    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' stroke='%23FF6467' stroke-width='3' stroke-dasharray='8,8' stroke-linecap='round'/%3e%3c/svg%3e");
     border-radius: 0.5rem;
   }
   
   .border-dashed-neutral {
-    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' stroke='%237C7C7F' stroke-width='2' stroke-dasharray='8,8' stroke-linecap='round'/%3e%3c/svg%3e");
+    background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='8' stroke='%237C7C7F' stroke-width='3' stroke-dasharray='8,8' stroke-linecap='round'/%3e%3c/svg%3e");
     border-radius: 0.5rem;
   }
 }
