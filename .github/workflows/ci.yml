@@ -15,13 +15,13 @@ jobs:
           version: 8
       - name: Install deps
         run: pnpm install
-        working-directory: ./frontend
+        working-directory: ./
       - name: Build
         run: pnpm build
-        working-directory: ./frontend
+        working-directory: ./
       - name: Run tests
         run: pnpm test
-        working-directory: ./frontend
+        working-directory: ./
 
   deploy:
     needs: build_and_test
