@@ -1,63 +1,62 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, use } from "react";
 import type { Board } from "@/types/kanban";
-import { Search, LayoutDashboard, ArrowLeft, Plus } from "lucide-react";
+import { Search, LayoutDashboard, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-
-// Mock data
-const mockBoards: Board[] = [
-  {
-    id: 1,
-    name: "Marketing Website",
-    ownerId: 1,
-    projectId: 1,
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 2,
-    name: "Brand Guidelines",
-    ownerId: 1,
-    projectId: 1,
-    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 3,
-    name: "Content Strategy",
-    ownerId: 1,
-    projectId: 1,
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
-// Mock task counts per board
-const mockBoardStats = {
-  1: { todo: 8, inProgress: 5, completed: 12 },
-  2: { todo: 3, inProgress: 2, completed: 7 },
-  3: { todo: 15, inProgress: 8, completed: 20 },
-};
+import { boardService } from "@/services/boards.service";
+import { projectService } from "@/services/projects.service";
 
 type ProjectPageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export default function ProjectPage({ params }: ProjectPageProps) {
-  const [boards] = useState<Board[]>(mockBoards);
+  const { id } = use(params);
+  const projectId = parseInt(id);
+  
+  const [projectName, setProjectName] = useState("");
+  const [boards, setBoards] = useState<Board[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [project, boardsData] = await Promise.all([
+          projectService.getById(projectId),
+          boardService.getAll(projectId),
+        ]);
+        
+        setProjectName(project.name);
+        setBoards(boardsData);
+      } catch (error) {
+        console.error("Failed to fetch project data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [projectId]);
 
   const filteredBoards = boards.filter((board) =>
     board.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const getStats = (boardId: number) => {
-    return mockBoardStats[boardId as keyof typeof mockBoardStats] || { todo: 0, inProgress: 0, completed: 0 };
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <div className="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading project...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -71,15 +70,11 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               </Button>
             </Link>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">Website Redesign</h1>
+              <h1 className="text-2xl font-bold">{projectName}</h1>
               <p className="text-sm text-gray-500">
                 {filteredBoards.length} {filteredBoards.length === 1 ? 'board' : 'boards'}
               </p>
             </div>
-            <Button>
-              <Plus className="size-4" />
-              New Board
-            </Button>
           </div>
 
           {/* Search */}
@@ -105,73 +100,25 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               <p className="mt-4 text-lg font-medium text-gray-500">
                 {searchQuery ? "No boards found" : "No boards yet"}
               </p>
-              {!searchQuery && (
-                <Button className="mt-4">
-                  <Plus className="size-4" />
-                  Create your first board
-                </Button>
-              )}
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredBoards.map((board) => {
-                const stats = getStats(board.id);
-                const totalTasks = stats.todo + stats.inProgress + stats.completed;
+              {filteredBoards.map((board) => (
+                <Link
+                  key={board.id}
+                  href={`/board/${board.id}`}
+                  className="block rounded-lg border bg-white p-5 transition-all hover:shadow-md"
+                >
+                  <div className="mb-3 flex items-center gap-3">
+                    <LayoutDashboard className="size-5 shrink-0 text-primary" />
+                    <h3 className="flex-1 font-semibold">{board.name}</h3>
+                  </div>
 
-                return (
-                  <Link
-                    key={board.id}
-                    href={`/board/${board.id}`}
-                    className="group block rounded-xl border bg-white p-5 transition-all hover:shadow-md"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="rounded-lg bg-blue-50 p-2 transition-colors group-hover:bg-blue-100">
-                          <LayoutDashboard className="size-5 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-gray-900">
-                            {board.name}
-                          </h3>
-                          <p className="mt-1 text-sm text-gray-500">
-                            {totalTasks} {totalTasks === 1 ? 'task' : 'tasks'} • Updated {new Date(board.updatedAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Task Stats */}
-                      <div className="flex items-center gap-4">
-                        {/* Todo */}
-                        <div className="flex items-center gap-1.5">
-                          <div className="size-2 rounded-full bg-gray-400" />
-                          <span className="text-sm font-medium text-gray-600">
-                            {stats.todo}
-                          </span>
-                          <span className="text-xs text-gray-500">Todo</span>
-                        </div>
-
-                        {/* In Progress */}
-                        <div className="flex items-center gap-1.5">
-                          <div className="size-2 rounded-full bg-orange-400" />
-                          <span className="text-sm font-medium text-orange-600">
-                            {stats.inProgress}
-                          </span>
-                          <span className="text-xs text-gray-500">In Progress</span>
-                        </div>
-
-                        {/* Completed */}
-                        <div className="flex items-center gap-1.5">
-                          <div className="size-2 rounded-full bg-green-500" />
-                          <span className="text-sm font-medium text-green-600">
-                            {stats.completed}
-                          </span>
-                          <span className="text-xs text-gray-500">Completed</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
+                  <div className="text-xs text-gray-500">
+                    Updated {new Date(board.updatedAt).toLocaleDateString()}
+                  </div>
+                </Link>
+              ))}
             </div>
           )}
         </div>

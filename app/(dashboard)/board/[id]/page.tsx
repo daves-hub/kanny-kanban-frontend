@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import type { Task, List } from "@/types/kanban";
+import { useState, use, useEffect } from "react";
+import type { Task, BoardWithLists, ListWithTasks } from "@/types/kanban";
 import { KanbanColumn } from "@/components/kanban-column";
 import TaskCard from "@/components/task-card";
 import DraggableTask from "@/components/draggable-task";
@@ -11,106 +11,263 @@ import { AddTaskModal } from "@/components/add-task-modal";
 import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
 import { DeleteColumn } from "@/components/delete-column";
 import { DragProvider } from "@/contexts/drag-context";
-
-// Mock data for demonstration
-const initialLists: List[] = [
-  {
-    id: 1,
-    boardId: 1,
-    title: "Todo",
-    position: 0,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    boardId: 1,
-    title: "In Progress",
-    position: 1,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 3,
-    boardId: 1,
-    title: "Completed",
-    position: 2,
-    createdAt: new Date().toISOString(),
-  },
-];
-
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    listId: 1,
-    title: "Task title",
-    description:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    position: 0,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    listId: 2,
-    title: "Task title",
-    description:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
-    position: 0,
-    createdAt: new Date().toISOString(),
-  },
-];
+import { boardService } from "@/services/boards.service";
+import { listService } from "@/services/lists.service";
+import { taskService } from "@/services/tasks.service";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 type BoardPageProps = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
 export default function BoardPage({ params }: BoardPageProps) {
-  const [lists] = useState<List[]>(initialLists);
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const { id } = use(params);
+  const boardId = parseInt(id);
+  
+  const [board, setBoard] = useState<BoardWithLists | null>(null);
+  const [loading, setLoading] = useState(true);
   const [addingToListId, setAddingToListId] = useState<number | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [isAddingList, setIsAddingList] = useState(false);
+  const [newListTitle, setNewListTitle] = useState("");
+  const [creatingList, setCreatingList] = useState(false);
 
-  // In a real app, you would fetch the board data based on params.id
-  // For now, we'll use the mock data
-  const boardId = parseInt(params.id);
+  // Fetch board data
+  useEffect(() => {
+    let isMounted = true;
 
-  const handleAddTask = (listId: number, title: string, description: string) => {
-    const newTask: Task = {
-      id: Date.now(),
-      listId,
-      title,
-      description,
-      position: tasks.filter((t) => t.listId === listId).length,
-      createdAt: new Date().toISOString(),
+    const fetchBoard = async () => {
+      try {
+    const boardData = await boardService.getById(boardId);
+
+    let listsWithTasks: ListWithTasks[] = [];
+
+        if (Array.isArray(boardData.lists)) {
+          listsWithTasks = await Promise.all(
+            boardData.lists.map(async (list) => {
+              if (Array.isArray(list.tasks)) {
+                return { ...list, tasks: list.tasks };
+              }
+
+              try {
+                const listTasks = await taskService.getAllByList(list.id);
+                return { ...list, tasks: listTasks };
+              } catch (taskError) {
+                console.error(`Failed to fetch tasks for list ${list.id}:`, taskError);
+                return { ...list, tasks: [] };
+              }
+            })
+          );
+        } else {
+          try {
+            const lists = await listService.getAllByBoard(boardId);
+            listsWithTasks = await Promise.all(
+              lists.map(async (list) => {
+                try {
+                  const listTasks = await taskService.getAllByList(list.id);
+                  return { ...list, tasks: listTasks };
+                } catch (taskError) {
+                  console.error(`Failed to fetch tasks for list ${list.id}:`, taskError);
+                  return { ...list, tasks: [] };
+                }
+              })
+            );
+          } catch (listError) {
+            console.error("Failed to fetch lists:", listError);
+          }
+        }
+
+        const sortedLists = listsWithTasks
+          .map((list) => ({ ...list, tasks: Array.isArray(list.tasks) ? list.tasks : [] }))
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+
+        if (isMounted) {
+          setBoard({ ...boardData, lists: sortedLists });
+          setIsAddingList(false);
+          setNewListTitle("");
+        }
+      } catch (error) {
+        console.error("Failed to fetch board:", error);
+        if (isMounted) {
+          setBoard(null);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
     };
-    setTasks([...tasks, newTask]);
-  };
 
-  const handleEditTask = (updatedTask: Task) => {
-    setTasks(tasks.map((t) => (t.id === updatedTask.id ? updatedTask : t)));
-  };
+    fetchBoard();
 
-  const handleDeleteTask = () => {
-    if (taskToDelete) {
-      setTasks(tasks.filter((t) => t.id !== taskToDelete.id));
-      setTaskToDelete(null);
+    return () => {
+      isMounted = false;
+    };
+  }, [boardId]);
+
+  const sensors = useSensors(useSensor(PointerSensor));
+
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <div className="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading board...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!board) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <p className="text-gray-600">Board not found</p>
+      </div>
+    );
+  }
+
+  const lists = (board.lists ?? []).filter(Boolean) as ListWithTasks[];
+  const tasks = lists.flatMap((list) => list.tasks ?? []);
+
+  const handleCreateList = async () => {
+    if (!newListTitle.trim()) return;
+    setCreatingList(true);
+    try {
+      const position = lists.length;
+      const newList = await listService.create(boardId, {
+        title: newListTitle.trim(),
+        position,
+      });
+
+      setBoard(prev => {
+        if (!prev) return prev;
+        const existingLists = prev.lists ?? [];
+        return {
+          ...prev,
+          lists: [
+            ...existingLists,
+            {
+              ...newList,
+              tasks: [],
+            },
+          ],
+        };
+      });
+
+      setNewListTitle("");
+      setIsAddingList(false);
+    } catch (error) {
+      console.error("Failed to create list:", error);
+      alert("Failed to create column. Please try again.");
+    } finally {
+      setCreatingList(false);
     }
   };
 
-  const handleDuplicateTask = (task: Task) => {
-    const newTask: Task = {
-      ...task,
-      id: Date.now(),
-      title: `${task.title} (copy)`,
-      position: tasks.filter((t) => t.listId === task.listId).length,
-      createdAt: new Date().toISOString(),
-    };
-    setTasks([...tasks, newTask]);
+  const handleAddTask = async (listId: number, title: string, description: string) => {
+    try {
+      const list = lists.find(l => l.id === listId);
+      if (!list) return;
+
+      const position = list.tasks.length;
+      const newTask = await taskService.create(listId, { title, description, position });
+      
+      // Update local state
+      setBoard(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          lists: prev.lists.map(l =>
+            l.id === listId
+              ? { ...l, tasks: [...l.tasks, newTask] }
+              : l
+          ),
+        };
+      });
+    } catch (error) {
+      console.error("Failed to create task:", error);
+    }
   };
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  const handleEditTask = async (updatedTask: Task) => {
+    try {
+      await taskService.update(updatedTask.id, {
+        title: updatedTask.title,
+        description: updatedTask.description || undefined,
+      });
+      
+      // Update local state
+      setBoard(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          lists: prev.lists.map(l => ({
+            ...l,
+            tasks: l.tasks.map(t => t.id === updatedTask.id ? updatedTask : t),
+          })),
+        };
+      });
+    } catch (error) {
+      console.error("Failed to update task:", error);
+    }
+  };
+
+  const handleDeleteTask = async () => {
+    if (taskToDelete) {
+      try {
+        await taskService.delete(taskToDelete.id);
+        
+        // Update local state
+        setBoard(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            lists: prev.lists.map(l => ({
+              ...l,
+              tasks: l.tasks.filter(t => t.id !== taskToDelete.id),
+            })),
+          };
+        });
+        setTaskToDelete(null);
+      } catch (error) {
+        console.error("Failed to delete task:", error);
+      }
+    }
+  };
+
+  const handleDuplicateTask = async (task: Task) => {
+    try {
+      const list = lists.find(l => l.id === task.listId);
+      if (!list) return;
+
+      const position = list.tasks.length;
+      const newTask = await taskService.create(task.listId, {
+        title: `${task.title} (copy)`,
+        description: task.description || undefined,
+        position,
+      });
+      
+      // Update local state
+      setBoard(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          lists: prev.lists.map(l =>
+            l.id === task.listId
+              ? { ...l, tasks: [...l.tasks, newTask] }
+              : l
+          ),
+        };
+      });
+    } catch (error) {
+      console.error("Failed to duplicate task:", error);
+    }
+  };
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
@@ -128,7 +285,7 @@ export default function BoardPage({ params }: BoardPageProps) {
     setOverId(over ? String(over.id) : null);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveTask(null);
     setOverId(null);
@@ -139,12 +296,12 @@ export default function BoardPage({ params }: BoardPageProps) {
     if (!activeMatch) return;
     const activeTaskId = Number(activeMatch[1]);
 
-    const activeTask = tasks.find((t) => t.id === activeTaskId);
-    if (!activeTask) return;
+    const activeTaskObj = tasks.find((t) => t.id === activeTaskId);
+    if (!activeTaskObj) return;
 
     // Check if dropped on delete zone
     if (over.id === "delete-zone") {
-      setTaskToDelete(activeTask);
+      setTaskToDelete(activeTaskObj);
       return;
     }
 
@@ -159,7 +316,8 @@ export default function BoardPage({ params }: BoardPageProps) {
     if (overListMatch) {
       // Dropped on empty column or column background
       targetListId = Number(overListMatch[1]);
-      const targetListTasks = tasks.filter((t) => t.listId === targetListId && t.id !== activeTaskId);
+      const targetList = lists.find(l => l.id === targetListId);
+      const targetListTasks = targetList?.tasks.filter((t) => t.id !== activeTaskId) || [];
       targetIndex = targetListTasks.length;
     } else if (overTaskMatch) {
       // Dropped on another task
@@ -168,20 +326,37 @@ export default function BoardPage({ params }: BoardPageProps) {
       if (!overTask) return;
       
       targetListId = overTask.listId;
-      const listTasks = tasks.filter((t) => t.listId === targetListId);
+      const listObj = lists.find(l => l.id === targetListId);
+      const listTasks = listObj?.tasks || [];
       const oldIndex = listTasks.findIndex((t) => t.id === activeTaskId);
       const newIndex = listTasks.findIndex((t) => t.id === overTaskId);
 
-      if (activeTask.listId === targetListId) {
+      if (activeTaskObj.listId === targetListId) {
         // Same column reordering
         const reordered = arrayMove(listTasks, oldIndex, newIndex);
-        setTasks((prev) => {
-          const otherTasks = prev.filter((t) => t.listId !== targetListId);
-          return [
-            ...otherTasks,
-            ...reordered.map((t, idx) => ({ ...t, position: idx })),
-          ];
-        });
+        
+        // Update positions in backend
+        try {
+          const updatePromises = reordered.map((task, idx) => 
+            taskService.update(task.id, { position: idx })
+          );
+          await Promise.all(updatePromises);
+          
+          // Update local state
+          setBoard(prev => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              lists: prev.lists.map(l =>
+                l.id === targetListId
+                  ? { ...l, tasks: reordered.map((t, idx) => ({ ...t, position: idx })) }
+                  : l
+              ),
+            };
+          });
+        } catch (error) {
+          console.error("Failed to reorder tasks:", error);
+        }
         return;
       } else {
         // Cross-column move
@@ -192,23 +367,50 @@ export default function BoardPage({ params }: BoardPageProps) {
     }
 
     // Handle cross-column move
-    setTasks((prev) => {
-      const updatedTasks = prev.map((t) => {
-        if (t.id === activeTaskId) {
-          return { ...t, listId: targetListId, position: targetIndex };
-        }
-        // Adjust positions in source list
-        if (t.listId === activeTask.listId && t.position > activeTask.position) {
-          return { ...t, position: t.position - 1 };
-        }
-        // Adjust positions in target list
-        if (t.listId === targetListId && t.position >= targetIndex) {
-          return { ...t, position: t.position + 1 };
-        }
-        return t;
+    try {
+      await taskService.update(activeTaskId, {
+        listId: targetListId,
+        position: targetIndex,
       });
-      return updatedTasks;
-    });
+      
+      // Update local state
+      setBoard(prev => {
+        if (!prev) return prev;
+        
+        const sourceList = prev.lists.find(l => l.id === activeTaskObj.listId);
+        const targetList = prev.lists.find(l => l.id === targetListId);
+        
+        if (!sourceList || !targetList) return prev;
+        
+        // Remove from source
+        const updatedSourceTasks = sourceList.tasks
+          .filter(t => t.id !== activeTaskId)
+          .map((t, idx) => ({ ...t, position: idx }));
+        
+        // Add to target
+        const movedTask = { ...activeTaskObj, listId: targetListId, position: targetIndex };
+        const updatedTargetTasks = [
+          ...targetList.tasks.slice(0, targetIndex),
+          movedTask,
+          ...targetList.tasks.slice(targetIndex),
+        ].map((t, idx) => ({ ...t, position: idx }));
+        
+        return {
+          ...prev,
+          lists: prev.lists.map(l => {
+            if (l.id === activeTaskObj.listId) {
+              return { ...l, tasks: updatedSourceTasks };
+            }
+            if (l.id === targetListId) {
+              return { ...l, tasks: updatedTargetTasks };
+            }
+            return l;
+          }),
+        };
+      });
+    } catch (error) {
+      console.error("Failed to move task:", error);
+    }
   };
 
   return (
@@ -223,7 +425,7 @@ export default function BoardPage({ params }: BoardPageProps) {
         <main className="flex-1 overflow-x-auto p-6">
           <div className="flex gap-6">
             {lists.map((list) => {
-              const listTasks = tasks.filter((t) => t.listId === list.id);
+              const listTasks = (list.tasks ?? []).filter((task): task is Task => Boolean(task));
               const isAdding = addingToListId === list.id;
               
               // Check if this column is being dragged over
@@ -243,7 +445,6 @@ export default function BoardPage({ params }: BoardPageProps) {
                   }
                 }
               }
-
               return (
                 <KanbanColumn
                   key={list.id}
@@ -279,34 +480,79 @@ export default function BoardPage({ params }: BoardPageProps) {
                 </KanbanColumn>
               );
             })}
+
+            {isAddingList ? (
+              <div className="flex min-w-[300px] max-w-[320px] flex-col rounded-lg border border-dashed border-primary/40 bg-white p-4 shadow-sm">
+                <h3 className="mb-3 text-sm font-semibold text-gray-700">New column</h3>
+                <Input
+                  value={newListTitle}
+                  onChange={(e) => setNewListTitle(e.target.value)}
+                  placeholder="Enter column title"
+                  className="mb-3"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateList();
+                    }
+                    if (e.key === "Escape") {
+                      setIsAddingList(false);
+                      setNewListTitle("");
+                    }
+                  }}
+                  autoFocus
+                />
+                <div className="flex items-center gap-2">
+                  <Button onClick={handleCreateList} disabled={creatingList || !newListTitle.trim()}>
+                    {creatingList ? "Adding..." : "Add column"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setIsAddingList(false);
+                      setNewListTitle("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAddingList(true)}
+                className="flex min-w-[300px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm font-medium text-gray-500 transition-all hover:border-gray-400 hover:text-gray-700"
+              >
+                + Add column
+              </button>
+            )}
             
             {/* Delete Column */}
             <DeleteColumn isDraggingOver={overId === "delete-zone"} />
           </div>
         </main>
 
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        task={taskToDelete}
-        open={!!taskToDelete}
-        onClose={() => setTaskToDelete(null)}
-        onConfirm={handleDeleteTask}
-      />
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmationModal
+          task={taskToDelete}
+          open={!!taskToDelete}
+          onClose={() => setTaskToDelete(null)}
+          onConfirm={handleDeleteTask}
+        />
 
-      {/* Drag Overlay - follows mouse cursor */}
-      <DragOverlay dropAnimation={null}>
-        {activeTask ? (
-          <div className="rotate-3 cursor-grabbing">
-            <TaskCard
-              task={activeTask}
-              onEdit={() => {}}
-              onDelete={() => {}}
-              onDuplicate={() => {}}
-            />
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        {/* Drag Overlay - follows mouse cursor */}
+        <DragOverlay dropAnimation={null}>
+          {activeTask ? (
+            <div className="cursor-grabbing">
+              <TaskCard
+                task={activeTask}
+                onEdit={() => {}}
+                onDelete={() => {}}
+                onDuplicate={() => {}}
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
     </DragProvider>
   );
 }

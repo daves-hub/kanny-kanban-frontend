@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+"use client";
 
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 import {
     Card,
     CardContent,
@@ -12,12 +15,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export const metadata: Metadata = {
-    title: "Sign In | Kanny Kanban",
-    description: "Access your Kanny Kanban workspace.",
-};
-
 function SigninPage() {
+    const router = useRouter();
+    const { signin, isAuthenticated, loading } = useAuth();
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    // Redirect to dashboard if already authenticated
+    useEffect(() => {
+        if (!loading && isAuthenticated) {
+            router.push("/");
+        }
+    }, [isAuthenticated, loading, router]);
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setError("");
+        setIsLoading(true);
+
+        const formData = new FormData(e.currentTarget);
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
+
+        try {
+            await signin(email, password);
+            // Don't redirect here - let the useEffect handle it
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to sign in");
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
             <Card className="w-full max-w-md border-border/80 shadow-md">
@@ -29,7 +57,12 @@ function SigninPage() {
                 </CardHeader>
 
                 <CardContent>
-                    <form method="post" className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {error && (
+                            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                                {error}
+                            </div>
+                        )}
                         <div className="space-y-2 text-left">
                             <label
                                 htmlFor="email"
@@ -73,8 +106,8 @@ function SigninPage() {
                             </Link>
                         </div>
 
-                        <Button type="submit" className="w-full bg-primary text-primary-foreground">
-                            Sign in
+                        <Button type="submit" className="w-full bg-primary text-primary-foreground" disabled={isLoading}>
+                            {isLoading ? "Signing in..." : "Sign in"}
                         </Button>
 
                         <div className="flex items-center gap-3 text-xs uppercase text-muted-foreground">

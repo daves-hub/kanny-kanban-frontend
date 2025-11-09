@@ -1,69 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
 import { Sidebar } from "@/components/sidebar";
 import { ProjectModal } from "@/components/project-modal";
 import { BoardModal } from "@/components/board-modal";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
 import { User } from "lucide-react";
-
-// Mock projects and boards data
-const mockProjects: Project[] = [
-  {
-    id: 1,
-    name: "Website Redesign",
-    description: "Complete redesign of the company website",
-    ownerId: 1,
-    createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    name: "Mobile App",
-    description: "Native mobile application",
-    ownerId: 1,
-    createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
-const mockBoards: Board[] = [
-  {
-    id: 1,
-    name: "Main Board",
-    ownerId: 1,
-    projectId: null,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    name: "Design Tasks",
-    ownerId: 1,
-    projectId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 3,
-    name: "Development",
-    ownerId: 1,
-    projectId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+import { useAuth } from "@/contexts/auth-context";
+import { projectService } from "@/services/projects.service";
+import { boardService } from "@/services/boards.service";
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const router = useRouter();
   const pathname = usePathname();
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [boards, setBoards] = useState<Board[]>(mockBoards);
+  const { user, loading: authLoading, signout, isAuthenticated } = useAuth();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [boards, setBoards] = useState<Board[]>([]);
+  const [loading, setLoading] = useState(true);
   
   // Sidebar modals
   const [isCreatingProject, setIsCreatingProject] = useState(false);
@@ -72,6 +31,60 @@ export default function DashboardLayout({
   const [editingBoard, setEditingBoard] = useState<Board | null>(null);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [deletingBoard, setDeletingBoard] = useState<Board | null>(null);
+  const [boardModalProjectId, setBoardModalProjectId] = useState<number | null>(null);
+
+  // Redirect to signin if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      router.push("/signin");
+    }
+  }, [authLoading, isAuthenticated, router]);
+
+  // Fetch projects and boards
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      if (!user) {
+        if (!isMounted) return;
+        setProjects([]);
+        setBoards([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      const [projectsResult, boardsResult] = await Promise.allSettled([
+        projectService.getAll(),
+        boardService.getAll(),
+      ]);
+
+      if (!isMounted) return;
+
+      if (projectsResult.status === "fulfilled") {
+        setProjects(projectsResult.value || []);
+      } else {
+        console.error("Failed to fetch projects:", projectsResult.reason);
+        setProjects([]);
+      }
+
+      if (boardsResult.status === "fulfilled") {
+        setBoards(boardsResult.value || []);
+      } else {
+        console.error("Failed to fetch boards:", boardsResult.reason);
+        setBoards([]);
+      }
+
+      setLoading(false);
+    };
+
+    fetchData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   // Determine current board and project from URL
   const currentBoardId = pathname?.match(/\/board\/(\d+)/)?.[1] 
@@ -82,25 +95,20 @@ export default function DashboardLayout({
     : undefined;
 
   // Project handlers
-  const handleSaveProject = (name: string, description: string) => {
-    if (editingProject) {
-      setProjects(projects.map(p =>
-        p.id === editingProject.id
-          ? { ...p, name, description, updatedAt: new Date().toISOString() }
-          : p
-      ));
-      setEditingProject(null);
-    } else {
-      const newProject: Project = {
-        id: Date.now(),
-        name,
-        description,
-        ownerId: 1,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setProjects([newProject, ...projects]);
-      setIsCreatingProject(false);
+  const handleSaveProject = async (name: string, description: string) => {
+    try {
+      if (editingProject) {
+        const updated = await projectService.update(editingProject.id, { name, description });
+        setProjects(prevProjects => prevProjects.map(p => p.id === updated.id ? updated : p));
+        setEditingProject(null);
+      } else {
+        const newProject = await projectService.create({ name, description });
+        setProjects(prevProjects => [newProject, ...prevProjects]);
+        setIsCreatingProject(false);
+      }
+    } catch (error) {
+      console.error("Failed to save project:", error);
+      alert("Failed to save project. Please try again.");
     }
   };
 
@@ -108,35 +116,37 @@ export default function DashboardLayout({
     setDeletingProject(project);
   };
 
-  const confirmDeleteProject = () => {
+  const confirmDeleteProject = async () => {
     if (deletingProject) {
-      setProjects(projects.filter(p => p.id !== deletingProject.id));
-      // Also delete boards in this project
-      setBoards(boards.filter(b => b.projectId !== deletingProject.id));
-      setDeletingProject(null);
+      try {
+        await projectService.delete(deletingProject.id);
+        setProjects(prevProjects => prevProjects.filter(p => p.id !== deletingProject.id));
+        setBoards(prevBoards => prevBoards.filter(b => b.projectId !== deletingProject.id));
+        setDeletingProject(null);
+      } catch (error) {
+        console.error("Failed to delete project:", error);
+        alert("Failed to delete project. Please try again.");
+      }
     }
   };
 
   // Board handlers
-  const handleSaveBoard = (name: string) => {
-    if (editingBoard) {
-      setBoards(boards.map(b =>
-        b.id === editingBoard.id
-          ? { ...b, name, updatedAt: new Date().toISOString() }
-          : b
-      ));
-      setEditingBoard(null);
-    } else {
-      const newBoard: Board = {
-        id: Date.now(),
-        name,
-        ownerId: 1,
-        projectId: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setBoards([newBoard, ...boards]);
-      setIsCreatingBoard(false);
+  const handleSaveBoard = async (name: string, projectId: number | null) => {
+    try {
+      if (editingBoard) {
+        const updated = await boardService.update(editingBoard.id, { name, projectId });
+        setBoards(prevBoards => prevBoards.map(b => b.id === updated.id ? updated : b));
+        setEditingBoard(null);
+        setBoardModalProjectId(null);
+      } else {
+        const newBoard = await boardService.create({ name, projectId: projectId ?? undefined });
+        setBoards(prevBoards => [newBoard, ...prevBoards]);
+        setIsCreatingBoard(false);
+        setBoardModalProjectId(null);
+      }
+    } catch (error) {
+      console.error("Failed to save board:", error);
+      alert("Failed to save board. Please try again.");
     }
   };
 
@@ -144,12 +154,34 @@ export default function DashboardLayout({
     setDeletingBoard(board);
   };
 
-  const confirmDeleteBoard = () => {
+  const confirmDeleteBoard = async () => {
     if (deletingBoard) {
-      setBoards(boards.filter(b => b.id !== deletingBoard.id));
-      setDeletingBoard(null);
+      try {
+        await boardService.delete(deletingBoard.id);
+        setBoards(prevBoards => prevBoards.filter(b => b.id !== deletingBoard.id));
+        setDeletingBoard(null);
+      } catch (error) {
+        console.error("Failed to delete board:", error);
+        alert("Failed to delete board. Please try again.");
+      }
     }
   };
+
+  // Show loading state while checking auth
+  if (authLoading || loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null; // Will redirect to signin
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
@@ -164,10 +196,14 @@ export default function DashboardLayout({
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">Ejemen Iboi</span>
-          <div className="flex size-8 items-center justify-center rounded-full bg-gray-200">
+          <span className="text-sm font-medium">{user?.name || user?.email}</span>
+          <button
+            onClick={signout}
+            className="flex size-8 items-center justify-center rounded-full bg-gray-200 hover:bg-gray-300"
+            title="Sign out"
+          >
             <User className="size-4" />
-          </div>
+          </button>
         </div>
       </header>
 
@@ -179,10 +215,17 @@ export default function DashboardLayout({
           currentBoardId={currentBoardId}
           currentProjectId={currentProjectId}
           onNewProject={() => setIsCreatingProject(true)}
-          onNewBoard={() => setIsCreatingBoard(true)}
+          onNewBoard={(projectId) => {
+            setBoardModalProjectId(projectId ?? null);
+            setEditingBoard(null);
+            setIsCreatingBoard(true);
+          }}
           onEditProject={(project) => setEditingProject(project)}
           onDeleteProject={handleDeleteProject}
-          onEditBoard={(board) => setEditingBoard(board)}
+          onEditBoard={(board) => {
+            setEditingBoard(board);
+            setBoardModalProjectId(board.projectId ?? null);
+          }}
           onDeleteBoard={handleDeleteBoard}
         />
 
@@ -192,6 +235,7 @@ export default function DashboardLayout({
 
       {/* Project Modal */}
       <ProjectModal
+        key={editingProject ? `project-${editingProject.id}` : `project-new`}
         open={isCreatingProject || !!editingProject}
         onClose={() => {
           setIsCreatingProject(false);
@@ -203,13 +247,17 @@ export default function DashboardLayout({
 
       {/* Board Modal */}
       <BoardModal
+        key={editingBoard ? `board-${editingBoard.id}` : `board-create-${boardModalProjectId ?? "none"}`}
         open={isCreatingBoard || !!editingBoard}
         onClose={() => {
           setIsCreatingBoard(false);
           setEditingBoard(null);
+          setBoardModalProjectId(null);
         }}
         onSave={handleSaveBoard}
         board={editingBoard}
+        projects={projects}
+        defaultProjectId={boardModalProjectId}
       />
 
       {/* Delete Project Confirmation */}

@@ -1,53 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Project } from "@/types/kanban";
-import { FolderKanban, Search, ArrowLeft, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { FolderKanban, Search, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-
-// Mock data
-const mockProjects: Project[] = [
-  {
-    id: 1,
-    name: "Website Redesign",
-    description: "Complete redesign of the company website with modern UI/UX",
-    ownerId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 2,
-    name: "Mobile App",
-    description: "Native mobile application for iOS and Android",
-    ownerId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: 3,
-    name: "Marketing Campaign Q4",
-    description: null,
-    ownerId: 1,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+import { projectService } from "@/services/projects.service";
+import { boardService } from "@/services/boards.service";
 
 export default function ProjectsPage() {
-  const [projects] = useState<Project[]>(mockProjects);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [boardCounts, setBoardCounts] = useState<Record<number, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeMenu, setActiveMenu] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchData = async () => {
+      try {
+        const [projectsResult, boardsResult] = await Promise.allSettled([
+          projectService.getAll(),
+          boardService.getAll(),
+        ]);
+
+        if (!isMounted) return;
+
+        if (projectsResult.status === "fulfilled") {
+          setProjects(projectsResult.value || []);
+        } else {
+          console.error("Failed to fetch projects:", projectsResult.reason);
+          setProjects([]);
+        }
+
+        if (boardsResult.status === "fulfilled") {
+          const counts: Record<number, number> = {};
+          boardsResult.value.forEach(board => {
+            if (board.projectId) {
+              counts[board.projectId] = (counts[board.projectId] || 0) + 1;
+            }
+          });
+          setBoardCounts(counts);
+        } else {
+          console.error("Failed to fetch boards:", boardsResult.reason);
+          setBoardCounts({});
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        console.error("Failed to fetch projects page data:", error);
+        setProjects([]);
+        setBoardCounts({});
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchData();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     project.description?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Mock board counts
-  const getBoardCount = (projectId: number) => {
-    return Math.floor(Math.random() * 5) + 1;
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <div className="size-12 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+          <p className="mt-4 text-gray-600">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-1 flex-col">
@@ -95,7 +125,7 @@ export default function ProjectsPage() {
           ) : (
             <div className="columns-1 gap-6 sm:columns-2 lg:columns-3 xl:columns-4">
               {filteredProjects.map((project) => {
-                const boardCount = getBoardCount(project.id);
+                const boardCount = boardCounts[project.id] || 0;
                 
                 return (
                   <div
@@ -110,53 +140,6 @@ export default function ProjectsPage() {
                         <div className="flex items-center gap-2">
                           <FolderKanban className="size-5 shrink-0 text-primary" />
                           <h3 className="font-semibold">{project.name}</h3>
-                        </div>
-                        
-                        <div className="relative">
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              setActiveMenu(activeMenu === project.id ? null : project.id);
-                            }}
-                            className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
-                          >
-                            <MoreHorizontal className="size-4" />
-                          </button>
-
-                          {activeMenu === project.id && (
-                            <>
-                              <div
-                                className="fixed inset-0 z-10"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setActiveMenu(null);
-                                }}
-                              />
-                              <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-lg border bg-white py-1 shadow-lg">
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    // This will be handled by the layout
-                                    setActiveMenu(null);
-                                  }}
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100"
-                                >
-                                  <Pencil className="size-3.5" />
-                                  Edit
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    // This will be handled by the layout
-                                  }}
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                                >
-                                  <Trash2 className="size-3.5" />
-                                  Delete
-                                </button>
-                              </div>
-                            </>
-                          )}
                         </div>
                       </div>
 

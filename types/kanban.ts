@@ -1,59 +1,94 @@
+import { z } from "zod";
+
 export type ISODateString = string;
 
-export type User = {
-  id: number;
-  email: string;
-  name: string | null;
-  createdAt: ISODateString;
-};
+const isoDateString = z.string();
 
-export type Project = {
-  id: number;
-  name: string;
-  description: string | null;
-  ownerId: number;
-  createdAt: ISODateString;
-  updatedAt: ISODateString;
-};
+export const UserSchema = z
+  .object({
+    id: z.number(),
+    email: z.string().email(),
+    name: z.string().nullable(),
+    createdAt: isoDateString,
+  })
+  .passthrough();
+export type User = z.infer<typeof UserSchema>;
 
-export type Board = {
-  id: number;
-  name: string;
-  ownerId: number;
-  projectId: number | null; // null for standalone boards
-  createdAt: ISODateString;
-  updatedAt: ISODateString;
-};
+export const BoardSummarySchema = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+  })
+  .passthrough();
+export type BoardSummary = z.infer<typeof BoardSummarySchema>;
 
-export type List = {
-  id: number;
-  boardId: number;
-  title: string;
-  position: number;
-  createdAt: ISODateString;
-};
+export const BoardSchema = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+    ownerId: z.number(),
+    projectId: z.number().nullable(),
+    createdAt: isoDateString,
+    updatedAt: isoDateString,
+  })
+  .passthrough();
+export type Board = z.infer<typeof BoardSchema>;
 
-export type Task = {
-  id: number;
-  listId: number;
-  title: string;
-  description: string | null;
-  position: number;
-  createdAt: ISODateString;
-};
+export const ListSchema = z
+  .object({
+    id: z.number(),
+    boardId: z.number(),
+    title: z.string(),
+    position: z.number(),
+    createdAt: isoDateString,
+  })
+  .passthrough();
+export type List = z.infer<typeof ListSchema>;
 
-export type ListWithTasks = List & {
-  tasks: Task[];
-};
+export const TaskSchema = z
+  .object({
+    id: z.number(),
+    listId: z.number(),
+    title: z.string(),
+    description: z.string().nullable(),
+    position: z.number(),
+    createdAt: isoDateString,
+  })
+  .passthrough();
+export type Task = z.infer<typeof TaskSchema>;
 
-export type BoardWithLists = Board & {
-  lists: ListWithTasks[];
-};
+export const ListWithTasksSchema = ListSchema.extend({
+  tasks: z.array(TaskSchema).default([]),
+});
+export type ListWithTasks = z.infer<typeof ListWithTasksSchema>;
 
-export type ProjectWithBoards = Project & {
-  boards: Board[];
-  boardCount?: number;
-};
+export const BoardWithListsSchema = BoardSchema.extend({
+  lists: z.array(ListWithTasksSchema).default([]),
+});
+export type BoardWithLists = z.infer<typeof BoardWithListsSchema>;
+
+export const ProjectSchema = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+    description: z.string().nullable(),
+    ownerId: z.number(),
+    createdAt: isoDateString,
+    updatedAt: isoDateString,
+    boards: z.array(BoardSummarySchema).optional(),
+  })
+  .passthrough();
+export type Project = z.infer<typeof ProjectSchema>;
+
+export const ProjectWithBoardsSchema = ProjectSchema.extend({
+  boards: z.array(BoardSchema).default([]),
+});
+export type ProjectWithBoards = z.infer<typeof ProjectWithBoardsSchema>;
+
+export const ProjectsResponseSchema = z.array(ProjectSchema);
+export const BoardsResponseSchema = z.array(BoardSchema);
+export const ListsResponseSchema = z.array(ListSchema);
+export const TasksResponseSchema = z.array(TaskSchema);
 
 export type EntityWithId = {
   id: number;

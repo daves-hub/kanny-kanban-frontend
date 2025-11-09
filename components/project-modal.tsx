@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 import type { Project } from "@/types/kanban";
 import {
   Dialog,
@@ -21,24 +21,18 @@ type ProjectModalProps = {
 };
 
 export function ProjectModal({ open, onClose, onSave, project }: ProjectModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
+  const [name, setName] = useState(project?.name ?? "");
+  const [description, setDescription] = useState(project?.description ?? "");
 
-  useEffect(() => {
-    if (project) {
-      setName(project.name);
-      setDescription(project.description || "");
-    } else {
-      setName("");
-      setDescription("");
-    }
-  }, [project, open]);
+  const resetForm = useCallback(() => {
+    setName(project?.name ?? "");
+    setDescription(project?.description ?? "");
+  }, [project]);
 
   const handleSave = () => {
     if (!name.trim()) return;
     onSave(name.trim(), description.trim());
-    setName("");
-    setDescription("");
+    resetForm();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -48,8 +42,16 @@ export function ProjectModal({ open, onClose, onSave, project }: ProjectModalPro
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          resetForm();
+          onClose();
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-[500px] border-dashed-blue">
         <DialogHeader>
           <DialogTitle>
             {project ? "Edit Project" : "New Project"}
@@ -84,7 +86,10 @@ export function ProjectModal({ open, onClose, onSave, project }: ProjectModalPro
 
         <div className="flex justify-end gap-2">
           <Button
-            onClick={onClose}
+            onClick={() => {
+              resetForm();
+              onClose();
+            }}
             variant="outline"
           >
             Cancel

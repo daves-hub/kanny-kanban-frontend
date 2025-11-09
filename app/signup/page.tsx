@@ -1,6 +1,9 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+"use client";
 
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 import {
     Card,
     CardContent,
@@ -12,12 +15,45 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export const metadata: Metadata = {
-    title: "Create Account | Kanny Kanban",
-    description: "Sign up to start organizing work in Kanny Kanban.",
-};
-
 function SignupPage() {
+    const router = useRouter();
+    const { signup, isAuthenticated, loading } = useAuth();
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState("");
+
+    // Redirect to dashboard if already authenticated
+    useEffect(() => {
+        if (!loading && isAuthenticated) {
+            router.push("/");
+        }
+    }, [isAuthenticated, loading, router]);
+
+    const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        setError("");
+        setIsLoading(true);
+
+        const formData = new FormData(e.currentTarget);
+        const name = formData.get("name") as string;
+        const email = formData.get("email") as string;
+        const password = formData.get("password") as string;
+        const confirmPassword = formData.get("confirmPassword") as string;
+
+        if (password !== confirmPassword) {
+            setError("Passwords do not match");
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            await signup(email, password, name);
+            // Don't redirect here - let the useEffect handle it
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Failed to create account");
+            setIsLoading(false);
+        }
+    };
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4 py-12">
             <Card className="w-full max-w-md border-border/80 shadow-md">
@@ -29,7 +65,12 @@ function SignupPage() {
                 </CardHeader>
 
                 <CardContent>
-                    <form method="post" className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-5">
+                        {error && (
+                            <div className="rounded-lg bg-red-50 p-3 text-sm text-red-600">
+                                {error}
+                            </div>
+                        )}
                         <div className="space-y-2 text-left">
                             <label
                                 htmlFor="name"
@@ -97,8 +138,8 @@ function SignupPage() {
                             />
                         </div>
 
-                        <Button type="submit" className="w-full">
-                            Create account
+                        <Button type="submit" className="w-full" disabled={isLoading}>
+                            {isLoading ? "Creating account..." : "Create account"}
                         </Button>
 
                         <div className="flex items-center gap-3 text-xs uppercase text-muted-foreground">

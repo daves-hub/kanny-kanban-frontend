@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import type { Board } from "@/types/kanban";
+import { useCallback, useMemo, useState } from "react";
+import type { Board, Project } from "@/types/kanban";
 import {
   Dialog,
   DialogContent,
@@ -15,26 +15,34 @@ import { Button } from "@/components/ui/button";
 type BoardModalProps = {
   open: boolean;
   onClose: () => void;
-  onSave: (name: string) => void;
+  onSave: (name: string, projectId: number | null) => void;
+  projects: Project[];
+  defaultProjectId?: number | null;
   board?: Board | null;
 };
 
-export function BoardModal({ open, onClose, onSave, board }: BoardModalProps) {
-  const [name, setName] = useState("");
+export function BoardModal({ open, onClose, onSave, board, projects, defaultProjectId = null }: BoardModalProps) {
+  const initialName = board?.name ?? "";
+  const initialProjectId = useMemo(() => board?.projectId ?? defaultProjectId ?? null, [board, defaultProjectId]);
 
-  useEffect(() => {
-    if (board) {
-      setName(board.name);
-    } else {
-      setName("");
-    }
-  }, [board, open]);
+  const [name, setName] = useState(initialName);
+  const [projectId, setProjectId] = useState<number | null>(initialProjectId);
+
+  const resetForm = useCallback(() => {
+    setName(initialName);
+    setProjectId(initialProjectId);
+  }, [initialName, initialProjectId]);
 
   const handleSave = () => {
     if (!name.trim()) return;
-    onSave(name.trim());
-    setName("");
+    onSave(name.trim(), projectId);
+    resetForm();
   };
+
+  const handleClose = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [onClose, resetForm]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
@@ -43,8 +51,15 @@ export function BoardModal({ open, onClose, onSave, board }: BoardModalProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[400px]">
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) {
+          handleClose();
+        }
+      }}
+    >
+      <DialogContent className="sm:max-w-[400px] border-dashed-blue">
         <DialogHeader>
           <DialogTitle>
             {board ? "Edit Board" : "New Board"}
@@ -63,11 +78,31 @@ export function BoardModal({ open, onClose, onSave, board }: BoardModalProps) {
               autoFocus
             />
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="board-project">Project</Label>
+            <select
+              id="board-project"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={projectId ?? ""}
+              onChange={(e) => {
+                const value = e.target.value;
+                setProjectId(value === "" ? null : Number(value));
+              }}
+            >
+              <option value="">Standalone board</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="flex justify-end gap-2">
           <Button
-            onClick={onClose}
+            onClick={handleClose}
             variant="outline"
           >
             Cancel

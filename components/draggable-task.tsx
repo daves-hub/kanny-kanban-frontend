@@ -2,7 +2,6 @@ import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { Task } from "@/types/kanban";
-import { cn } from "@/lib/utils";
 
 type Props = {
   task: Task;

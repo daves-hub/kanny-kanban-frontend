@@ -11,7 +11,6 @@ type KanbanColumnProps = {
   onEditTask: (task: Task) => void;
   onDeleteTask: (task: Task) => void;
   children?: React.ReactNode;
-  isOver?: boolean;
   isDraggingOver?: boolean;
 };
 
@@ -37,7 +36,7 @@ export function KanbanColumn({
   isDraggingOver = false,
 }: KanbanColumnProps) {
   const dotColor = getStatusColor(list.title);
-  const { setNodeRef, isOver } = useDroppable({ id: `list-${list.id}` });
+  const { setNodeRef } = useDroppable({ id: `list-${list.id}` });
   const taskIds = tasks.map((task) => `task-${task.id}`);
   
   const showPlaceholder = isDraggingOver && tasks.length === 0;
