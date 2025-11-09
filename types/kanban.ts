@@ -34,6 +34,18 @@ export const BoardSchema = z
   .passthrough();
 export type Board = z.infer<typeof BoardSchema>;
 
+export const ProjectBoardSchema = z
+  .object({
+    id: z.number(),
+    name: z.string(),
+    ownerId: z.number().optional(),
+    projectId: z.number().nullable().optional(),
+    createdAt: isoDateString.optional(),
+    updatedAt: isoDateString.optional(),
+  })
+  .passthrough();
+export type ProjectBoard = z.infer<typeof ProjectBoardSchema>;
+
 export const ListSchema = z
   .object({
     id: z.number(),
@@ -81,7 +93,7 @@ export const ProjectSchema = z
 export type Project = z.infer<typeof ProjectSchema>;
 
 export const ProjectWithBoardsSchema = ProjectSchema.extend({
-  boards: z.array(BoardSchema).default([]),
+  boards: z.array(ProjectBoardSchema).default([]),
 });
 export type ProjectWithBoards = z.infer<typeof ProjectWithBoardsSchema>;
 

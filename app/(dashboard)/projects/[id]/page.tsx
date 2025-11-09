@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
-import type { Board } from "@/types/kanban";
+import type { Project, ProjectWithBoards, ProjectBoard } from "@/types/kanban";
 import { Search, LayoutDashboard, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { boardService } from "@/services/boards.service";
 import { projectService } from "@/services/projects.service";
+import { BoardModal } from "@/components/board-modal";
 
 type ProjectPageProps = {
   params: Promise<{
@@ -18,21 +19,20 @@ export default function ProjectPage({ params }: ProjectPageProps) {
   const { id } = use(params);
   const projectId = parseInt(id);
   
-  const [projectName, setProjectName] = useState("");
-  const [boards, setBoards] = useState<Board[]>([]);
+  const [project, setProject] = useState<ProjectWithBoards | null>(null);
+  const [boards, setBoards] = useState<ProjectBoard[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [isBoardModalOpen, setIsBoardModalOpen] = useState(false);
+
+  const projectOptions: Project[] = project ? [project] : [];
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [project, boardsData] = await Promise.all([
-          projectService.getById(projectId),
-          boardService.getAll(projectId),
-        ]);
-        
-        setProjectName(project.name);
-        setBoards(boardsData);
+  const projectData = await projectService.getById(projectId);
+        setProject(projectData);
+        setBoards(projectData.boards ?? []);
       } catch (error) {
         console.error("Failed to fetch project data:", error);
       } finally {
@@ -42,6 +42,41 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
     fetchData();
   }, [projectId]);
+
+  const handleSaveBoard = async (name: string, selectedProjectId: number | null) => {
+    try {
+      const created = await boardService.create({
+        name,
+        projectId: selectedProjectId ?? projectId,
+      });
+
+      const { lists: _lists, ...boardSummary } = created;
+
+      const nextBoard: ProjectBoard = {
+        id: boardSummary.id,
+        name: boardSummary.name,
+        ownerId: boardSummary.ownerId,
+        projectId: boardSummary.projectId,
+        createdAt: boardSummary.createdAt,
+        updatedAt: boardSummary.updatedAt,
+      };
+
+      setBoards((prev) => [nextBoard, ...prev]);
+      setProject((prev) =>
+        prev
+          ? {
+              ...prev,
+              boards: [nextBoard, ...(prev.boards ?? [])],
+            }
+          : prev
+      );
+
+      setIsBoardModalOpen(false);
+    } catch (error) {
+      console.error("Failed to create board:", error);
+      alert("Failed to create board. Please try again.");
+    }
+  };
 
   const filteredBoards = boards.filter((board) =>
     board.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -70,11 +105,13 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               </Button>
             </Link>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">{projectName}</h1>
+              <h1 className="text-2xl font-bold">{project?.name}</h1>
               <p className="text-sm text-gray-500">
-                {filteredBoards.length} {filteredBoards.length === 1 ? 'board' : 'boards'}
+                {filteredBoards.length} {filteredBoards.length === 1 ? "board" : "boards"}
               </p>
             </div>
+
+            <Button onClick={() => setIsBoardModalOpen(true)}>New board</Button>
           </div>
 
           {/* Search */}
@@ -100,6 +137,11 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               <p className="mt-4 text-lg font-medium text-gray-500">
                 {searchQuery ? "No boards found" : "No boards yet"}
               </p>
+              {!searchQuery && (
+                <Button className="mt-6" onClick={() => setIsBoardModalOpen(true)}>
+                  Create board
+                </Button>
+              )}
             </div>
           ) : (
             <div className="space-y-3">
@@ -114,15 +156,26 @@ export default function ProjectPage({ params }: ProjectPageProps) {
                     <h3 className="flex-1 font-semibold">{board.name}</h3>
                   </div>
 
-                  <div className="text-xs text-gray-500">
-                    Updated {new Date(board.updatedAt).toLocaleDateString()}
-                  </div>
+                  {board.updatedAt ? (
+                    <div className="text-xs text-gray-500">
+                      Updated {new Date(board.updatedAt).toLocaleDateString()}
+                    </div>
+                  ) : null}
                 </Link>
               ))}
             </div>
           )}
         </div>
       </main>
+
+      <BoardModal
+        open={isBoardModalOpen}
+        onClose={() => setIsBoardModalOpen(false)}
+        onSave={handleSaveBoard}
+        board={null}
+        projects={projectOptions}
+        defaultProjectId={projectId}
+      />
     </div>
   );
 }
