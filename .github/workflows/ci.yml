@@ -25,7 +25,7 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: Lint
         run: pnpm lint
@@ -63,10 +63,21 @@ jobs:
 
       - name: Deploy to Vercel
         id: deploy
-        uses: vercel/actions/deploy@v1
-        with:
-          token: ${{ secrets.VERCEL_TOKEN }}
-          project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          org-id: ${{ secrets.VERCEL_ORG_ID }}
-          working-directory: .
-          production: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          pnpm dlx vercel@latest pull --yes --environment=production \
+            --token "$VERCEL_TOKEN" \
+            --project "$VERCEL_PROJECT_ID" \
+            --org "$VERCEL_ORG_ID"
+          pnpm dlx vercel@latest build --prod \
+            --token "$VERCEL_TOKEN" \
+            --project "$VERCEL_PROJECT_ID" \
+            --org "$VERCEL_ORG_ID"
+          DEPLOY_URL=$(pnpm dlx vercel@latest deploy --prebuilt --prod \
+            --token "$VERCEL_TOKEN" \
+            --project "$VERCEL_PROJECT_ID" \
+            --org "$VERCEL_ORG_ID")
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
