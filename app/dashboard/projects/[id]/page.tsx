@@ -28,12 +28,19 @@ export default function ProjectPage({ params }: ProjectPageProps) {
 
   const projectOptions: Project[] = project ? [project] : [];
 
+  const sortBoards = (items: ProjectBoard[]) =>
+    [...items].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return bTime - aTime;
+    });
+
   useEffect(() => {
     const fetchData = async () => {
       try {
   const projectData = await projectService.getById(projectId);
-        setProject(projectData);
-        setBoards(projectData.boards ?? []);
+    setProject(projectData);
+    setBoards(sortBoards(projectData.boards ?? []));
       } catch (error) {
         console.error("Failed to fetch project data:", error);
       } finally {
@@ -60,12 +67,12 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         updatedAt: created.updatedAt,
       };
 
-      setBoards((prev) => [nextBoard, ...prev]);
+      setBoards((prev) => sortBoards([...prev, nextBoard]));
       setProject((prev) =>
         prev
           ? {
               ...prev,
-              boards: [nextBoard, ...(prev.boards ?? [])],
+              boards: sortBoards([nextBoard, ...(prev.boards ?? [])]),
             }
           : prev
       );

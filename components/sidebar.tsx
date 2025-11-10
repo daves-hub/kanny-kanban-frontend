@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useState } from "react";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
@@ -99,8 +99,24 @@ export function Sidebar({
     setExpandedProjects(newExpanded);
   };
 
-  const recentProjects = (projects?.slice(0, 5) || []).filter((p) => p && p.id);
-  const standaloneBoards = (boards?.filter((b) => b && !b.projectId) || []);
+  const sortedProjects = useMemo(() => {
+    return [...(projects || [])].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return bTime - aTime;
+    });
+  }, [projects]);
+
+  const sortedBoards = useMemo(() => {
+    return [...(boards || [])].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return bTime - aTime;
+    });
+  }, [boards]);
+
+  const recentProjects = sortedProjects.slice(0, 5).filter((p) => p && p.id);
+  const standaloneBoards = sortedBoards.filter((b) => b && !b.projectId);
   const isSettingsRoute = pathname?.startsWith("/dashboard/settings");
   const collapsed = isMobile ? false : isCollapsed;
 

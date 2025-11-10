@@ -37,6 +37,14 @@ export default function DashboardLayout({
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const isMobileSidebarOpenRef = useRef(isMobileSidebarOpen);
 
+  const sortByRecent = useCallback(<T extends { updatedAt?: string | null; createdAt?: string | null }>(items: T[]) => {
+    return [...items].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return bTime - aTime;
+    });
+  }, []);
+
   useEffect(() => {
     isMobileSidebarOpenRef.current = isMobileSidebarOpen;
   }, [isMobileSidebarOpen]);
@@ -71,14 +79,14 @@ export default function DashboardLayout({
       if (!isMounted) return;
 
       if (projectsResult.status === "fulfilled") {
-        setProjects(projectsResult.value || []);
+        setProjects(sortByRecent(projectsResult.value || []));
       } else {
         console.error("Failed to fetch projects:", projectsResult.reason);
         setProjects([]);
       }
 
       if (boardsResult.status === "fulfilled") {
-        setBoards(boardsResult.value || []);
+        setBoards(sortByRecent(boardsResult.value || []));
       } else {
         console.error("Failed to fetch boards:", boardsResult.reason);
         setBoards([]);
@@ -92,7 +100,7 @@ export default function DashboardLayout({
     return () => {
       isMounted = false;
     };
-  }, [user]);
+  }, [user, sortByRecent]);
 
   useEffect(() => {
     if (!isMobileSidebarOpenRef.current) return;
@@ -112,11 +120,13 @@ export default function DashboardLayout({
     try {
       if (editingProject) {
         const updated = await projectService.update(editingProject.id, { name, description });
-        setProjects(prevProjects => prevProjects.map(p => p.id === updated.id ? updated : p));
+        setProjects(prevProjects => prevProjects.length
+          ? sortByRecent(prevProjects.map(p => (p.id === updated.id ? updated : p)))
+          : []);
         setEditingProject(null);
       } else {
         const newProject = await projectService.create({ name, description });
-        setProjects(prevProjects => [newProject, ...prevProjects]);
+        setProjects(prevProjects => sortByRecent([...prevProjects, newProject]));
         setIsCreatingProject(false);
       }
     } catch (error) {
@@ -148,12 +158,14 @@ export default function DashboardLayout({
     try {
       if (editingBoard) {
         const updated = await boardService.update(editingBoard.id, { name, projectId });
-        setBoards(prevBoards => prevBoards.map(b => b.id === updated.id ? updated : b));
+        setBoards(prevBoards => prevBoards.length
+          ? sortByRecent(prevBoards.map(b => (b.id === updated.id ? updated : b)))
+          : []);
         setEditingBoard(null);
         setBoardModalProjectId(null);
       } else {
         const newBoard = await boardService.create({ name, projectId: projectId ?? undefined });
-        setBoards(prevBoards => [newBoard, ...prevBoards]);
+        setBoards(prevBoards => sortByRecent([...prevBoards, newBoard]));
         setIsCreatingBoard(false);
         setBoardModalProjectId(null);
       }

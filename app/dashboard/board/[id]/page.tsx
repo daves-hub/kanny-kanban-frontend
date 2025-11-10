@@ -26,7 +26,6 @@ import { boardService } from "@/services/boards.service";
 import { listService } from "@/services/lists.service";
 import { taskService } from "@/services/tasks.service";
 import { projectService } from "@/services/projects.service";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
@@ -47,9 +46,6 @@ export default function BoardPage({ params }: BoardPageProps) {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
-  const [isAddingList, setIsAddingList] = useState(false);
-  const [newListTitle, setNewListTitle] = useState("");
-  const [creatingList, setCreatingList] = useState(false);
   const [collapsedLists, setCollapsedLists] = useState<Set<number>>(new Set());
   const [isMobileView, setIsMobileView] = useState(false);
   const wasMobileRef = useRef<boolean | null>(null);
@@ -117,8 +113,6 @@ export default function BoardPage({ params }: BoardPageProps) {
         if (isMounted) {
           setBoard({ ...boardData, lists: sortedLists });
           setProjectName(fetchedProjectName);
-          setIsAddingList(false);
-          setNewListTitle("");
         }
       } catch (error) {
         console.error("Failed to fetch board:", error);
@@ -205,49 +199,6 @@ export default function BoardPage({ params }: BoardPageProps) {
       }
       return next;
     });
-  };
-
-  const handleCreateList = async () => {
-    if (!newListTitle.trim()) return;
-    setCreatingList(true);
-    try {
-      const position = lists.length;
-      const newList = await listService.create(boardId, {
-        title: newListTitle.trim(),
-        position,
-      });
-
-      setBoard(prev => {
-        if (!prev) return prev;
-        const existingLists = prev.lists ?? [];
-        return {
-          ...prev,
-          lists: [
-            ...existingLists,
-            {
-              ...newList,
-              tasks: [],
-            },
-          ],
-        };
-      });
-
-      if (isMobileView) {
-        setCollapsedLists(prev => {
-          const next = new Set(prev);
-          next.add(newList.id);
-          return next;
-        });
-      }
-
-      setNewListTitle("");
-      setIsAddingList(false);
-    } catch (error) {
-      console.error("Failed to create list:", error);
-      alert("Failed to create column. Please try again.");
-    } finally {
-      setCreatingList(false);
-    }
   };
 
   const handleAddTask = async (listId: number, title: string, description: string) => {
@@ -603,51 +554,6 @@ export default function BoardPage({ params }: BoardPageProps) {
                   </KanbanColumn>
                 );
               })}
-
-              {/* {isAddingList ? (
-                <div className="flex h-full flex-col rounded-lg border border-dashed border-primary/40 bg-white p-4 shadow-sm">
-                  <h3 className="mb-3 text-sm font-semibold text-gray-700">New column</h3>
-                  <Input
-                    value={newListTitle}
-                    onChange={(e) => setNewListTitle(e.target.value)}
-                    placeholder="Enter column title"
-                    className="mb-3"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleCreateList();
-                      }
-                      if (e.key === "Escape") {
-                        setIsAddingList(false);
-                        setNewListTitle("");
-                      }
-                    }}
-                    autoFocus
-                  />
-                  <div className="mt-auto flex items-center gap-2">
-                    <Button onClick={handleCreateList} disabled={creatingList || !newListTitle.trim()}>
-                      {creatingList ? "Adding..." : "Add column"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setIsAddingList(false);
-                        setNewListTitle("");
-                      }}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setIsAddingList(true)}
-                  className="flex h-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm font-medium text-gray-500 transition-all hover:border-gray-400 hover:text-gray-700"
-                >
-                  + Add column
-                </button>
-              )} */}
 
               {/* Delete Column */}
               <DeleteColumn isDraggingOver={overId === "delete-zone"} />

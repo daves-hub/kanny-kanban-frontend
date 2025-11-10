@@ -21,6 +21,13 @@ export default function ProjectsPage() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
 
+  const sortByRecent = (items: Project[]) =>
+    [...items].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt ?? 0).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt ?? 0).getTime();
+      return bTime - aTime;
+    });
+
   useEffect(() => {
     let isMounted = true;
 
@@ -33,8 +40,8 @@ export default function ProjectsPage() {
 
         if (!isMounted) return;
 
-        if (projectsResult.status === "fulfilled") {
-          setProjects(projectsResult.value || []);
+          if (projectsResult.status === "fulfilled") {
+          setProjects(sortByRecent(projectsResult.value || []));
         } else {
           console.error("Failed to fetch projects:", projectsResult.reason);
           setProjects([]);
@@ -81,7 +88,7 @@ export default function ProjectsPage() {
         description: description ? description : undefined,
       });
 
-      setProjects(prev => prev.map(project => (project.id === updated.id ? updated : project)));
+  setProjects(prev => sortByRecent(prev.map(project => (project.id === updated.id ? updated : project))));
       setEditingProject(null);
       setIsProjectModalOpen(false);
     } catch (error) {
@@ -94,7 +101,7 @@ export default function ProjectsPage() {
     if (!deletingProject) return;
     try {
       await projectService.delete(deletingProject.id);
-      setProjects(prev => prev.filter(project => project.id !== deletingProject.id));
+  setProjects(prev => prev.filter(project => project.id !== deletingProject.id));
       setBoardCounts(prev => {
         const next = { ...prev };
         delete next[deletingProject.id];
