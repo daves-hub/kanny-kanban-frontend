@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/contexts/auth-context";
+import { SITE_METADATA } from "@/lib/metadata";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,14 +13,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Kanny Kanban | A Zkyte Fullstack Task",
-  authors: [{ name: "Ighalo Genesis Osasenaga", url: "https://daves-hub.vercel.app" }],
-  description: "A Kanban board built with Next.js and TypeScript",
-  icons: {
-    icon: "/favicon.svg",
-  },
-};
+export const metadata = SITE_METADATA;
 
 export default function RootLayout({
   children,

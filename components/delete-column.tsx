@@ -13,7 +13,7 @@ export function DeleteColumn({ isDraggingOver = false }: DeleteColumnProps) {
     <div
       ref={setNodeRef}
       className={cn(
-        "border-dashed-neutral flex min-w-[300px] max-w-[320px] flex-col items-center justify-center bg-gray-50 p-8 transition-all",
+        "border-dashed-neutral flex h-full flex-col items-center justify-center rounded-lg bg-gray-50 p-8 transition-all",
         isDraggingOver && "border-dashed-blue bg-red-50"
       )}
     >

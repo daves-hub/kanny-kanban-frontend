@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, use, useEffect } from "react";
+import { useState, use, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import type { Task, BoardWithLists, ListWithTasks } from "@/types/kanban";
 import { KanbanColumn } from "@/components/kanban-column";
@@ -50,6 +50,9 @@ export default function BoardPage({ params }: BoardPageProps) {
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListTitle, setNewListTitle] = useState("");
   const [creatingList, setCreatingList] = useState(false);
+  const [collapsedLists, setCollapsedLists] = useState<Set<number>>(new Set());
+  const [isMobileView, setIsMobileView] = useState(false);
+  const wasMobileRef = useRef<boolean | null>(null);
 
   // Fetch board data
   useEffect(() => {
@@ -137,7 +140,39 @@ export default function BoardPage({ params }: BoardPageProps) {
     };
   }, [boardId]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 768);
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const sensors = useSensors(useSensor(PointerSensor));
+
+  const lists = useMemo(
+    () => (board?.lists ?? []).filter(Boolean) as ListWithTasks[],
+    [board]
+  );
+
+  useEffect(() => {
+    if (board === null) {
+      setCollapsedLists(new Set());
+    }
+  }, [board]);
+
+  useEffect(() => {
+    const previouslyMobile = wasMobileRef.current;
+    if (isMobileView && !previouslyMobile) {
+      setCollapsedLists(new Set(lists.map((list) => list.id)));
+    }
+    if (!isMobileView && previouslyMobile) {
+      setCollapsedLists(new Set());
+    }
+    wasMobileRef.current = isMobileView;
+  }, [isMobileView, lists]);
 
   if (loading) {
     return (
@@ -158,8 +193,19 @@ export default function BoardPage({ params }: BoardPageProps) {
     );
   }
 
-  const lists = (board.lists ?? []).filter(Boolean) as ListWithTasks[];
   const tasks = lists.flatMap((list) => list.tasks ?? []);
+
+  const toggleListCollapse = (listId: number) => {
+    setCollapsedLists((prev) => {
+      const next = new Set(prev);
+      if (next.has(listId)) {
+        next.delete(listId);
+      } else {
+        next.add(listId);
+      }
+      return next;
+    });
+  };
 
   const handleCreateList = async () => {
     if (!newListTitle.trim()) return;
@@ -185,6 +231,14 @@ export default function BoardPage({ params }: BoardPageProps) {
           ],
         };
       });
+
+      if (isMobileView) {
+        setCollapsedLists(prev => {
+          const next = new Set(prev);
+          next.add(newList.id);
+          return next;
+        });
+      }
 
       setNewListTitle("");
       setIsAddingList(false);
@@ -487,11 +541,12 @@ export default function BoardPage({ params }: BoardPageProps) {
             </div>
           </header>
 
-          <main className="flex-1 overflow-x-auto p-6">
-            <div className="flex gap-6">
+          <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-none md:grid-flow-col md:auto-cols-[minmax(280px,1fr)] md:grid-rows-2">
               {lists.map((list) => {
                 const listTasks = (list.tasks ?? []).filter((task): task is Task => Boolean(task));
                 const isAdding = addingToListId === list.id;
+                const isCollapsed = collapsedLists.has(list.id);
 
                 // Check if this column is being dragged over
                 let isDraggingOver = false;
@@ -520,6 +575,8 @@ export default function BoardPage({ params }: BoardPageProps) {
                     onEditTask={handleEditTask}
                     onDeleteTask={(task) => setTaskToDelete(task)}
                     isDraggingOver={isDraggingOver}
+                    collapsed={isCollapsed}
+                    onToggleCollapse={toggleListCollapse}
                   >
                     {listTasks.map((task) => (
                       <DraggableTask key={task.id} task={task}>
@@ -548,7 +605,7 @@ export default function BoardPage({ params }: BoardPageProps) {
               })}
 
               {isAddingList ? (
-                <div className="flex min-w-[300px] max-w-[320px] flex-col rounded-lg border border-dashed border-primary/40 bg-white p-4 shadow-sm">
+                <div className="flex h-full flex-col rounded-lg border border-dashed border-primary/40 bg-white p-4 shadow-sm">
                   <h3 className="mb-3 text-sm font-semibold text-gray-700">New column</h3>
                   <Input
                     value={newListTitle}
@@ -567,7 +624,7 @@ export default function BoardPage({ params }: BoardPageProps) {
                     }}
                     autoFocus
                   />
-                  <div className="flex items-center gap-2">
+                  <div className="mt-auto flex items-center gap-2">
                     <Button onClick={handleCreateList} disabled={creatingList || !newListTitle.trim()}>
                       {creatingList ? "Adding..." : "Add column"}
                     </Button>
@@ -586,7 +643,7 @@ export default function BoardPage({ params }: BoardPageProps) {
               ) : (
                 <button
                   onClick={() => setIsAddingList(true)}
-                  className="flex min-w-[300px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm font-medium text-gray-500 transition-all hover:border-gray-400 hover:text-gray-700"
+                  className="flex h-full items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm font-medium text-gray-500 transition-all hover:border-gray-400 hover:text-gray-700"
                 >
                   + Add column
                 </button>

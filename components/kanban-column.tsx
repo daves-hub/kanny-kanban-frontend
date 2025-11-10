@@ -1,5 +1,5 @@
 import type { List, Task } from "@/types/kanban";
-import { Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -12,6 +12,8 @@ type KanbanColumnProps = {
   onDeleteTask: (task: Task) => void;
   children?: React.ReactNode;
   isDraggingOver?: boolean;
+  collapsed?: boolean;
+  onToggleCollapse?: (listId: number) => void;
 };
 
 const statusColors = {
@@ -34,6 +36,8 @@ export function KanbanColumn({
   onAddTask,
   children,
   isDraggingOver = false,
+  collapsed = false,
+  onToggleCollapse,
 }: KanbanColumnProps) {
   const dotColor = getStatusColor(list.title);
   const { setNodeRef } = useDroppable({ id: `list-${list.id}` });
@@ -42,16 +46,25 @@ export function KanbanColumn({
   const showPlaceholder = isDraggingOver && tasks.length === 0;
 
   return (
-    <div ref={setNodeRef} className="border-dashed-neutral flex min-w-[300px] max-w-[320px] flex-col bg-gray-50 p-4">
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+    <div ref={setNodeRef} className="border-dashed-neutral flex h-full flex-col rounded-lg bg-gray-50 p-4">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="flex flex-1 items-center gap-2">
           <span className={cn("size-3 rounded-full", dotColor)} />
-          <h3 className="text-base font-black text-gray-600">{list.title}</h3>
+          <h3 className="truncate text-base font-black text-gray-600">{list.title}</h3>
         </div>
         <span className="text-sm font-bold text-gray-400">{tasks.length}</span>
+        <button
+          type="button"
+          onClick={() => onToggleCollapse?.(list.id)}
+          className="rounded p-1 transition-colors hover:bg-gray-100"
+          aria-label={collapsed ? "Expand list" : "Collapse list"}
+        >
+          {collapsed ? <ChevronDown className="size-4" /> : <ChevronUp className="size-4" />}
+        </button>
       </div>
 
-      <div className="flex flex-1 flex-col gap-3">
+      <div className={cn("flex flex-1 flex-col gap-3", collapsed && "hidden")}
+      >
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           {children}
           {showPlaceholder && (

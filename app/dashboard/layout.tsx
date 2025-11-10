@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
@@ -8,10 +8,11 @@ import { Sidebar } from "@/components/sidebar";
 import { ProjectModal } from "@/components/project-modal";
 import { BoardModal } from "@/components/board-modal";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
-import { User } from "lucide-react";
+import { Menu, User } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { projectService } from "@/services/projects.service";
 import { boardService } from "@/services/boards.service";
+import { Button } from "@/components/ui/button";
 
 export default function DashboardLayout({
   children,
@@ -33,6 +34,7 @@ export default function DashboardLayout({
   const [deletingProject, setDeletingProject] = useState<Project | null>(null);
   const [deletingBoard, setDeletingBoard] = useState<Board | null>(null);
   const [boardModalProjectId, setBoardModalProjectId] = useState<number | null>(null);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   // Redirect to signin if not authenticated
   useEffect(() => {
@@ -86,6 +88,12 @@ export default function DashboardLayout({
       isMounted = false;
     };
   }, [user]);
+
+  useEffect(() => {
+    if (isMobileSidebarOpen) {
+      setIsMobileSidebarOpen(false);
+    }
+  }, [pathname, isMobileSidebarOpen]);
 
   // Determine current board and project from URL
   const currentBoardId = pathname?.match(/\/board\/(\d+)/)?.[1] 
@@ -168,6 +176,14 @@ export default function DashboardLayout({
     }
   };
 
+  const openMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(true);
+  }, []);
+
+  const closeMobileSidebar = useCallback(() => {
+    setIsMobileSidebarOpen(false);
+  }, []);
+
   // Show loading state while checking auth
   if (authLoading || loading) {
     return (
@@ -187,14 +203,24 @@ export default function DashboardLayout({
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* Header */}
-      <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
-        <div className="flex items-center gap-2">
+      <header className="flex h-16 items-center justify-between border-b bg-white px-4 shadow-sm md:px-6">
+        <div className="flex items-center gap-3">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="md:hidden"
+            onClick={openMobileSidebar}
+          >
+            <Menu className="size-5" />
+            <span className="sr-only">Open navigation</span>
+          </Button>
           <Image
             src="/logo.png"
             alt="Kanny logo"
             width={323}
             height={122}
-            className="h-10 w-auto"
+            className="h-8 w-auto md:h-10"
             priority
           />
         </div>
@@ -211,30 +237,35 @@ export default function DashboardLayout({
         </div>
       </header>
 
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         {/* Sidebar */}
-        <Sidebar
-          projects={projects}
-          boards={boards}
-          currentBoardId={currentBoardId}
-          currentProjectId={currentProjectId}
-          onNewProject={() => setIsCreatingProject(true)}
-          onNewBoard={(projectId) => {
-            setBoardModalProjectId(projectId ?? null);
-            setEditingBoard(null);
-            setIsCreatingBoard(true);
-          }}
-          onEditProject={(project) => setEditingProject(project)}
-          onDeleteProject={handleDeleteProject}
-          onEditBoard={(board) => {
-            setEditingBoard(board);
-            setBoardModalProjectId(board.projectId ?? null);
-          }}
-          onDeleteBoard={handleDeleteBoard}
-        />
+        <div className="hidden flex-1 max-w-min md:flex">
+          <Sidebar
+            projects={projects}
+            boards={boards}
+            currentBoardId={currentBoardId}
+            currentProjectId={currentProjectId}
+            onNewProject={() => setIsCreatingProject(true)}
+            onNewBoard={(projectId) => {
+              setBoardModalProjectId(projectId ?? null);
+              setEditingBoard(null);
+              setIsCreatingBoard(true);
+            }}
+            onEditProject={(project) => setEditingProject(project)}
+            onDeleteProject={handleDeleteProject}
+            onEditBoard={(board) => {
+              setEditingBoard(board);
+              setBoardModalProjectId(board.projectId ?? null);
+            }}
+            onDeleteBoard={handleDeleteBoard}
+            onSignout={signout}
+          />
+        </div>
 
         {/* Main Content */}
-        {children}
+        <div className="flex flex-1 overflow-x-hidden">
+          {children}
+        </div>
       </div>
 
       {/* Project Modal */}
@@ -281,6 +312,55 @@ export default function DashboardLayout({
         title={`Delete "${deletingBoard?.name}"?`}
         description="All tasks within this board will also be deleted. This action cannot be undone."
       />
+
+      {/* Mobile Sidebar */}
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-40 md:hidden">
+          <div
+            className="absolute inset-0 bg-gray-900/40"
+            onClick={closeMobileSidebar}
+            aria-hidden
+          />
+          <div className="relative h-full w-72">
+            <Sidebar
+              projects={projects}
+              boards={boards}
+              currentBoardId={currentBoardId}
+              currentProjectId={currentProjectId}
+              onNewProject={() => {
+                setIsCreatingProject(true);
+                closeMobileSidebar();
+              }}
+              onNewBoard={(projectId) => {
+                setBoardModalProjectId(projectId ?? null);
+                setEditingBoard(null);
+                setIsCreatingBoard(true);
+                closeMobileSidebar();
+              }}
+              onEditProject={(project) => {
+                setEditingProject(project);
+                closeMobileSidebar();
+              }}
+              onDeleteProject={(project) => {
+                setDeletingProject(project);
+                closeMobileSidebar();
+              }}
+              onEditBoard={(board) => {
+                setEditingBoard(board);
+                setBoardModalProjectId(board.projectId ?? null);
+                closeMobileSidebar();
+              }}
+              onDeleteBoard={(board) => {
+                setDeletingBoard(board);
+                closeMobileSidebar();
+              }}
+              isMobile
+              onClose={closeMobileSidebar}
+              onSignout={() => { signout(); closeMobileSidebar(); }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

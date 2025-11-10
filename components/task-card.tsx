@@ -1,7 +1,9 @@
 import type { Task } from "@/types/kanban";
 import { Edit2, Copy } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type TaskCardProps = {
@@ -20,20 +22,54 @@ export default function TaskCard({
 }: TaskCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedTitle, setEditedTitle] = useState(task.title);
+  const [editedDescription, setEditedDescription] = useState(task.description ?? "");
 
-  const handleSave = () => {
-    if (editedTitle.trim()) {
-      onEdit({ ...task, title: editedTitle });
-      setIsEditing(false);
-    }
+  useEffect(() => {
+    setEditedTitle(task.title);
+    setEditedDescription(task.description ?? "");
+  }, [task]);
+
+  const resetEdits = () => {
+    setEditedTitle(task.title);
+    setEditedDescription(task.description ?? "");
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleSave();
-    } else if (e.key === "Escape") {
-      setEditedTitle(task.title);
+  const handleSave = () => {
+    const trimmedTitle = editedTitle.trim();
+    if (!trimmedTitle) {
+      resetEdits();
       setIsEditing(false);
+      return;
+    }
+
+    const nextDescription = editedDescription.trim();
+
+    onEdit({
+      ...task,
+      title: trimmedTitle,
+      description: nextDescription ? nextDescription : null,
+    });
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    resetEdits();
+    setIsEditing(false);
+  };
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    handleSave();
+  };
+
+  const handleTextareaKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+      event.preventDefault();
+      handleSave();
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      handleCancel();
     }
   };
 
@@ -44,67 +80,70 @@ export default function TaskCard({
         isHighlighted && "ring-2 ring-red-400"
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        {isEditing ? (
-          <div className="flex-1 space-y-3">
-            <Input
-              value={editedTitle}
-              onChange={(e) => setEditedTitle(e.target.value)}
-              onBlur={handleSave}
-              onKeyDown={handleKeyDown}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="h-10 rounded-full border-blue-400 text-sm"
-              autoFocus
-            />
-          </div>
-        ) : (
-          <h4
-            className={cn(
-              "flex-1 text-sm font-bold",
-              isEditing && "text-blue-600"
-            )}
-          >
-            {task.title}
-          </h4>
-        )}
-
-        <div className="flex gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditing(true);
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
-            aria-label="Edit task"
-          >
-            <Edit2 className="size-4 text-gray-600" />
-          </button>
-          {onDuplicate && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate(task);
-              }}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
-              aria-label="Duplicate task"
-            >
-              <Copy className="size-4 text-gray-600" />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {task.description && (
-        <p
-          className={cn(
-            "mt-3 text-xs leading-relaxed text-gray-600",
-            isEditing && "text-blue-500"
-          )}
+      {isEditing ? (
+        <form
+          onSubmit={handleSubmit}
+          className="flex flex-col gap-3"
+          onPointerDown={(event) => event.stopPropagation()}
         >
-          {task.description}
-        </p>
+          <Input
+            value={editedTitle}
+            onChange={(event) => setEditedTitle(event.target.value)}
+            className="h-10 rounded-full border-blue-400 text-sm"
+            autoFocus
+          />
+          <Textarea
+            value={editedDescription}
+            onChange={(event) => setEditedDescription(event.target.value)}
+            onKeyDown={handleTextareaKeyDown}
+            className="min-h-[120px] resize-y text-sm"
+          />
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={!editedTitle.trim()}>
+              Save
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <h4 className="flex-1 text-sm font-bold">{task.title}</h4>
+            <div className="flex gap-1">
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  resetEdits();
+                  setIsEditing(true);
+                }}
+                onPointerDown={(event) => event.stopPropagation()}
+                className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
+                aria-label="Edit task"
+              >
+                <Edit2 className="size-4 text-gray-600" />
+              </button>
+              {onDuplicate && (
+                <button
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onDuplicate(task);
+                  }}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-100 group-hover:opacity-100"
+                  aria-label="Duplicate task"
+                >
+                  <Copy className="size-4 text-gray-600" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {task.description && (
+            <p className="mt-3 text-xs leading-relaxed text-gray-600">{task.description}</p>
+          )}
+        </>
       )}
     </div>
   );
