@@ -604,7 +604,7 @@ export default function BoardPage({ params }: BoardPageProps) {
                 );
               })}
 
-              {isAddingList ? (
+              {/* {isAddingList ? (
                 <div className="flex h-full flex-col rounded-lg border border-dashed border-primary/40 bg-white p-4 shadow-sm">
                   <h3 className="mb-3 text-sm font-semibold text-gray-700">New column</h3>
                   <Input
@@ -647,7 +647,7 @@ export default function BoardPage({ params }: BoardPageProps) {
                 >
                   + Add column
                 </button>
-              )}
+              )} */}
 
               {/* Delete Column */}
               <DeleteColumn isDraggingOver={overId === "delete-zone"} />
