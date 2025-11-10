@@ -24,7 +24,7 @@ function SigninPage() {
     // Redirect to dashboard if already authenticated
     useEffect(() => {
         if (!loading && isAuthenticated) {
-            router.push("/");
+            router.push("/dashboard");
         }
     }, [isAuthenticated, loading, router]);
 

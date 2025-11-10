@@ -17,6 +17,9 @@ export const metadata: Metadata = {
   title: "Kanny Kanban | A Zkyte Fullstack Task",
   authors: [{ name: "Ighalo Genesis Osasenaga", url: "https://daves-hub.vercel.app" }],
   description: "A Kanban board built with Next.js and TypeScript",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

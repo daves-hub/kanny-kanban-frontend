@@ -72,15 +72,13 @@ export function Sidebar({
               >
                 <Plus className="size-4 text-gray-600" />
               </button>
-              {projects && projects.length > 5 && (
-                <Link
-                  href="/projects"
-                  className="rounded p-1 transition-colors hover:bg-gray-100"
-                  title="See all projects"
-                >
-                  <ChevronRight className="size-4 text-gray-600" />
-                </Link>
-              )}
+              <Link
+                href="/dashboard/projects"
+                className="rounded p-1 transition-colors hover:bg-gray-100"
+                title="See all projects"
+              >
+                <ChevronRight className="size-4 text-gray-600" />
+              </Link>
             </div>
           </div>
 
@@ -101,7 +99,7 @@ export function Sidebar({
                     )}
                   >
                     <Link
-                      href={`/projects/${project.id}`}
+                      href={`/dashboard/projects/${project.id}`}
                       className="flex flex-1 items-center gap-2"
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest('button')) {
@@ -185,7 +183,7 @@ export function Sidebar({
                         return (
                         <Link
                           key={board.id}
-                          href={`/board/${board.id}`}
+                          href={`/dashboard/board/${board.id}`}
                           className={cn(
                             "group relative flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors",
                             currentBoardId === board.id
@@ -294,7 +292,7 @@ export function Sidebar({
               return (
                 <Link
                   key={board.id}
-                  href={`/board/${board.id}`}
+                  href={`/dashboard/board/${board.id}`}
                   className={cn(
                     "group relative flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors",
                     currentBoardId === board.id

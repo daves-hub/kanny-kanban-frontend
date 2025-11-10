@@ -37,25 +37,24 @@ The frontend has been fully integrated with the backend API. All mock data has b
 - **`app/layout.tsx`** - Wrapped with AuthProvider
 
 ### Dashboard
-- **`app/(dashboard)/layout.tsx`**:
+- **`app/dashboard/layout.tsx`**:
   - Fetches real projects and boards
   - Implements CRUD operations with API
   - Shows loading states
   - Auto-redirect if not authenticated
 
 ### Board View
-- **`app/(dashboard)/board/[id]/page.tsx`**:
+- **`app/dashboard/board/[id]/page.tsx`**:
   - Fetches board with lists and tasks
   - Create/update/delete tasks with API
   - Drag & drop persists to backend
   - Optimistic UI updates
 
-### Projects
-- **`app/(dashboard)/projects/page.tsx`**:
+- **`app/dashboard/projects/page.tsx`**:
   - Fetches all projects with board counts
   - Loading and empty states
 
-- **`app/(dashboard)/projects/[id]/page.tsx`**:
+- **`app/dashboard/projects/[id]/page.tsx`**:
   - Fetches project details and boards
   - Search functionality
 

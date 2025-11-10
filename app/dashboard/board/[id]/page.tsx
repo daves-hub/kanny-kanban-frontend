@@ -1,11 +1,22 @@
 "use client";
 
 import { useState, use, useEffect } from "react";
+import Link from "next/link";
 import type { Task, BoardWithLists, ListWithTasks } from "@/types/kanban";
 import { KanbanColumn } from "@/components/kanban-column";
 import TaskCard from "@/components/task-card";
 import DraggableTask from "@/components/draggable-task";
-import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragEndEvent, DragStartEvent, DragOverlay, DragOverEvent } from "@dnd-kit/core";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  DragOverEvent,
+} from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 import { AddTaskModal } from "@/components/add-task-modal";
 import { DeleteConfirmationModal } from "@/components/delete-confirmation-modal";
@@ -14,8 +25,10 @@ import { DragProvider } from "@/contexts/drag-context";
 import { boardService } from "@/services/boards.service";
 import { listService } from "@/services/lists.service";
 import { taskService } from "@/services/tasks.service";
+import { projectService } from "@/services/projects.service";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ArrowLeft } from "lucide-react";
 
 type BoardPageProps = {
   params: Promise<{
@@ -29,6 +42,7 @@ export default function BoardPage({ params }: BoardPageProps) {
   
   const [board, setBoard] = useState<BoardWithLists | null>(null);
   const [loading, setLoading] = useState(true);
+  const [projectName, setProjectName] = useState<string | null>(null);
   const [addingToListId, setAddingToListId] = useState<number | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -42,10 +56,21 @@ export default function BoardPage({ params }: BoardPageProps) {
     let isMounted = true;
 
     const fetchBoard = async () => {
+      setProjectName(null);
       try {
-    const boardData = await boardService.getById(boardId);
+        const boardData = await boardService.getById(boardId);
 
-    let listsWithTasks: ListWithTasks[] = [];
+        let listsWithTasks: ListWithTasks[] = [];
+
+        let fetchedProjectName: string | null = null;
+        if (boardData.projectId) {
+          try {
+            const project = await projectService.getById(boardData.projectId);
+            fetchedProjectName = project.name;
+          } catch (projectError) {
+            console.error("Failed to fetch project for board:", projectError);
+          }
+        }
 
         if (Array.isArray(boardData.lists)) {
           listsWithTasks = await Promise.all(
@@ -88,6 +113,7 @@ export default function BoardPage({ params }: BoardPageProps) {
 
         if (isMounted) {
           setBoard({ ...boardData, lists: sortedLists });
+          setProjectName(fetchedProjectName);
           setIsAddingList(false);
           setNewListTitle("");
         }
@@ -95,6 +121,7 @@ export default function BoardPage({ params }: BoardPageProps) {
         console.error("Failed to fetch board:", error);
         if (isMounted) {
           setBoard(null);
+          setProjectName(null);
         }
       } finally {
         if (isMounted) {
@@ -413,123 +440,163 @@ export default function BoardPage({ params }: BoardPageProps) {
     }
   };
 
+  const projectId = typeof board.projectId === "number" ? board.projectId : null;
+  const hasProject = projectId !== null;
+  const showProjectInfo = hasProject && Boolean(projectName);
+
   return (
     <DragProvider>
-      <DndContext 
-        sensors={sensors} 
-        collisionDetection={closestCenter} 
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <main className="flex-1 overflow-x-auto p-6">
-          <div className="flex gap-6">
-            {lists.map((list) => {
-              const listTasks = (list.tasks ?? []).filter((task): task is Task => Boolean(task));
-              const isAdding = addingToListId === list.id;
-              
-              // Check if this column is being dragged over
-              let isDraggingOver = false;
-              if (overId) {
-                const overListMatch = overId.match(/^list-(\d+)$/);
-                if (overListMatch && Number(overListMatch[1]) === list.id) {
-                  isDraggingOver = true;
-                } else {
-                  const overTaskMatch = overId.match(/^task-(\d+)$/);
-                  if (overTaskMatch) {
-                    const overTaskId = Number(overTaskMatch[1]);
-                    const overTask = tasks.find((t) => t.id === overTaskId);
-                    if (overTask && overTask.listId === list.id) {
-                      isDraggingOver = true;
+        <div className="flex flex-1 flex-col">
+          <header className="border-b bg-white px-6 py-3">
+            <div className="flex items-center gap-3">
+              {hasProject && projectId !== null ? (
+                <Link href={`/dashboard/projects/${projectId}`}>
+                  <Button variant="ghost" size="icon" className="shrink-0">
+                    <ArrowLeft className="size-5" />
+                    <span className="sr-only">Back to project</span>
+                  </Button>
+                </Link>
+              ) : null}
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 text-sm text-gray-700">
+                  <h1 className="truncate text-xl font-semibold text-gray-900">{board.name}</h1>
+                  {showProjectInfo && projectId !== null ? (
+                    <>
+                      <span aria-hidden className="text-gray-300">•</span>
+                      <Link
+                        href={`/dashboard/projects/${projectId}`}
+                        className="truncate text-sm text-gray-500 hover:text-gray-700"
+                      >
+                        {projectName}
+                      </Link>
+                    </>
+                  ) : null}
+                </div>
+                {hasProject ? (
+                  <p className="truncate text-xs text-gray-500">Project board</p>
+                ) : null}
+              </div>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-x-auto p-6">
+            <div className="flex gap-6">
+              {lists.map((list) => {
+                const listTasks = (list.tasks ?? []).filter((task): task is Task => Boolean(task));
+                const isAdding = addingToListId === list.id;
+
+                // Check if this column is being dragged over
+                let isDraggingOver = false;
+                if (overId) {
+                  const overListMatch = overId.match(/^list-(\d+)$/);
+                  if (overListMatch && Number(overListMatch[1]) === list.id) {
+                    isDraggingOver = true;
+                  } else {
+                    const overTaskMatch = overId.match(/^task-(\d+)$/);
+                    if (overTaskMatch) {
+                      const overTaskId = Number(overTaskMatch[1]);
+                      const overTask = tasks.find((t) => t.id === overTaskId);
+                      if (overTask && overTask.listId === list.id) {
+                        isDraggingOver = true;
+                      }
                     }
                   }
                 }
-              }
-              return (
-                <KanbanColumn
-                  key={list.id}
-                  list={list}
-                  tasks={listTasks}
-                  onAddTask={(listId) => setAddingToListId(listId)}
-                  onEditTask={handleEditTask}
-                  onDeleteTask={(task) => setTaskToDelete(task)}
-                  isDraggingOver={isDraggingOver}
-                >
-                  {listTasks.map((task) => (
-                    <DraggableTask key={task.id} task={task}>
-                      <TaskCard
-                        task={task}
-                        onEdit={handleEditTask}
-                        onDelete={(task) => setTaskToDelete(task)}
-                        onDuplicate={handleDuplicateTask}
-                        isHighlighted={task.id === taskToDelete?.id}
-                      />
-                    </DraggableTask>
-                  ))}
 
-                  {isAdding && (
-                    <AddTaskModal
-                      listId={list.id}
-                      onAdd={(title, description) => {
-                        handleAddTask(list.id, title, description);
-                        setAddingToListId(null);
-                      }}
-                      onClose={() => setAddingToListId(null)}
-                    />
-                  )}
-                </KanbanColumn>
-              );
-            })}
-
-            {isAddingList ? (
-              <div className="flex min-w-[300px] max-w-[320px] flex-col rounded-lg border border-dashed border-primary/40 bg-white p-4 shadow-sm">
-                <h3 className="mb-3 text-sm font-semibold text-gray-700">New column</h3>
-                <Input
-                  value={newListTitle}
-                  onChange={(e) => setNewListTitle(e.target.value)}
-                  placeholder="Enter column title"
-                  className="mb-3"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handleCreateList();
-                    }
-                    if (e.key === "Escape") {
-                      setIsAddingList(false);
-                      setNewListTitle("");
-                    }
-                  }}
-                  autoFocus
-                />
-                <div className="flex items-center gap-2">
-                  <Button onClick={handleCreateList} disabled={creatingList || !newListTitle.trim()}>
-                    {creatingList ? "Adding..." : "Add column"}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setIsAddingList(false);
-                      setNewListTitle("");
-                    }}
+                return (
+                  <KanbanColumn
+                    key={list.id}
+                    list={list}
+                    tasks={listTasks}
+                    onAddTask={(listId) => setAddingToListId(listId)}
+                    onEditTask={handleEditTask}
+                    onDeleteTask={(task) => setTaskToDelete(task)}
+                    isDraggingOver={isDraggingOver}
                   >
-                    Cancel
-                  </Button>
+                    {listTasks.map((task) => (
+                      <DraggableTask key={task.id} task={task}>
+                        <TaskCard
+                          task={task}
+                          onEdit={handleEditTask}
+                          onDelete={(task) => setTaskToDelete(task)}
+                          onDuplicate={handleDuplicateTask}
+                          isHighlighted={task.id === taskToDelete?.id}
+                        />
+                      </DraggableTask>
+                    ))}
+
+                    {isAdding && (
+                      <AddTaskModal
+                        listId={list.id}
+                        onAdd={(title, description) => {
+                          handleAddTask(list.id, title, description);
+                          setAddingToListId(null);
+                        }}
+                        onClose={() => setAddingToListId(null)}
+                      />
+                    )}
+                  </KanbanColumn>
+                );
+              })}
+
+              {isAddingList ? (
+                <div className="flex min-w-[300px] max-w-[320px] flex-col rounded-lg border border-dashed border-primary/40 bg-white p-4 shadow-sm">
+                  <h3 className="mb-3 text-sm font-semibold text-gray-700">New column</h3>
+                  <Input
+                    value={newListTitle}
+                    onChange={(e) => setNewListTitle(e.target.value)}
+                    placeholder="Enter column title"
+                    className="mb-3"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleCreateList();
+                      }
+                      if (e.key === "Escape") {
+                        setIsAddingList(false);
+                        setNewListTitle("");
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <div className="flex items-center gap-2">
+                    <Button onClick={handleCreateList} disabled={creatingList || !newListTitle.trim()}>
+                      {creatingList ? "Adding..." : "Add column"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setIsAddingList(false);
+                        setNewListTitle("");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsAddingList(true)}
-                className="flex min-w-[300px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm font-medium text-gray-500 transition-all hover:border-gray-400 hover:text-gray-700"
-              >
-                + Add column
-              </button>
-            )}
-            
-            {/* Delete Column */}
-            <DeleteColumn isDraggingOver={overId === "delete-zone"} />
-          </div>
-        </main>
+              ) : (
+                <button
+                  onClick={() => setIsAddingList(true)}
+                  className="flex min-w-[300px] max-w-[320px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-white p-4 text-sm font-medium text-gray-500 transition-all hover:border-gray-400 hover:text-gray-700"
+                >
+                  + Add column
+                </button>
+              )}
+
+              {/* Delete Column */}
+              <DeleteColumn isDraggingOver={overId === "delete-zone"} />
+            </div>
+          </main>
+        </div>
 
         {/* Delete Confirmation Modal */}
         <DeleteConfirmationModal

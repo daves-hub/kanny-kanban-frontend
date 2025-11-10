@@ -99,7 +99,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
       <div className="border-b bg-white px-6 py-4">
         <div className="mx-auto max-w-5xl">
           <div className="flex items-center gap-4">
-            <Link href="/projects">
+            <Link href="/dashboard/projects">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="size-5" />
               </Button>
@@ -148,7 +148,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
               {filteredBoards.map((board) => (
                 <Link
                   key={board.id}
-                  href={`/board/${board.id}`}
+                  href={`/dashboard/board/${board.id}`}
                   className="block rounded-lg border bg-white p-5 transition-all hover:shadow-md"
                 >
                   <div className="mb-3 flex items-center gap-3">

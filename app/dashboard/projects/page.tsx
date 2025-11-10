@@ -2,17 +2,23 @@
 
 import { useState, useEffect } from "react";
 import type { Project } from "@/types/kanban";
-import { FolderKanban, Search, ArrowLeft } from "lucide-react";
+import { FolderKanban, Search, ArrowLeft, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { projectService } from "@/services/projects.service";
 import { boardService } from "@/services/boards.service";
+import { ProjectModal } from "@/components/project-modal";
+import { ConfirmationDialog } from "@/components/confirmation-dialog";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [boardCounts, setBoardCounts] = useState<Record<number, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
+  const [menuProjectId, setMenuProjectId] = useState<number | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [deletingProject, setDeletingProject] = useState<Project | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -63,6 +69,43 @@ export default function ProjectsPage() {
     };
   }, []);
 
+  const closeProjectMenu = () => setMenuProjectId(null);
+
+  const handleSaveProject = async (name: string, description: string) => {
+    if (!editingProject) return;
+
+    try {
+      const updated = await projectService.update(editingProject.id, {
+        name,
+        description: description ? description : undefined,
+      });
+
+      setProjects(prev => prev.map(project => (project.id === updated.id ? updated : project)));
+      setEditingProject(null);
+      setIsProjectModalOpen(false);
+    } catch (error) {
+      console.error("Failed to save project:", error);
+      alert("Failed to save project. Please try again.");
+    }
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!deletingProject) return;
+    try {
+      await projectService.delete(deletingProject.id);
+      setProjects(prev => prev.filter(project => project.id !== deletingProject.id));
+      setBoardCounts(prev => {
+        const next = { ...prev };
+        delete next[deletingProject.id];
+        return next;
+      });
+      setDeletingProject(null);
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+      alert("Failed to delete project. Please try again.");
+    }
+  };
+
   const filteredProjects = projects.filter((project) =>
     project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     project.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -85,7 +128,7 @@ export default function ProjectsPage() {
       <div className="border-b bg-white px-6 py-4">
         <div className="mx-auto max-w-7xl">
           <div className="flex items-center gap-4">
-            <Link href="/">
+            <Link href="/dashboard">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="size-5" />
               </Button>
@@ -133,8 +176,8 @@ export default function ProjectsPage() {
                     className="group relative mb-6 break-inside-avoid"
                   >
                     <Link
-                      href={`/projects/${project.id}`}
-                      className="block rounded-lg border bg-white p-5 transition-all hover:shadow-md"
+                      href={`/dashboard/projects/${project.id}`}
+                      className="block rounded-lg border bg-white p-5 pr-12 transition-all hover:shadow-md"
                     >
                       <div className="mb-3 flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
@@ -155,6 +198,51 @@ export default function ProjectsPage() {
                         <span>Updated {new Date(project.updatedAt).toLocaleDateString()}</span>
                       </div>
                     </Link>
+
+                    <button
+                      type="button"
+                      aria-haspopup="menu"
+                      aria-expanded={menuProjectId === project.id}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setMenuProjectId(prev => (prev === project.id ? null : project.id));
+                      }}
+                      className="pointer-events-none absolute right-4 top-4 flex rounded-full bg-white p-1 text-gray-600 opacity-0 shadow-sm transition hover:text-gray-900 group-hover:pointer-events-auto group-hover:opacity-100 group-hover:shadow-md"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+
+                    {menuProjectId === project.id && (
+                      <div
+                        className="absolute right-4 top-12 z-20 w-44 rounded-lg border bg-white py-1 shadow-lg"
+                        role="menu"
+                      >
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                          onClick={() => {
+                            setEditingProject(project);
+                            setIsProjectModalOpen(true);
+                            closeProjectMenu();
+                          }}
+                        >
+                          <Pencil className="size-3.5" />
+                          Edit project
+                        </button>
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          onClick={() => {
+                            setDeletingProject(project);
+                            closeProjectMenu();
+                          }}
+                        >
+                          <Trash2 className="size-3.5" />
+                          Delete project
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -162,6 +250,31 @@ export default function ProjectsPage() {
           )}
         </div>
       </main>
+
+      {menuProjectId !== null && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={closeProjectMenu}
+        />
+      )}
+
+      <ProjectModal
+        open={isProjectModalOpen}
+        onClose={() => {
+          setIsProjectModalOpen(false);
+          setEditingProject(null);
+        }}
+        onSave={handleSaveProject}
+        project={editingProject ?? undefined}
+      />
+
+      <ConfirmationDialog
+        open={!!deletingProject}
+        onClose={() => setDeletingProject(null)}
+        onConfirm={confirmDeleteProject}
+        title={deletingProject ? `Delete "${deletingProject.name}"?` : "Delete project"}
+        description="All boards and tasks within this project will also be deleted. This action cannot be undone."
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
 import { Sidebar } from "@/components/sidebar";
@@ -188,11 +189,14 @@ export default function DashboardLayout({
       {/* Header */}
       <header className="flex h-16 items-center justify-between border-b bg-white px-6 shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="flex items-end">
-            <div className="size-8 rounded-full border-2 border-white bg-primary z-1" />
-            <div className="size-10 -ml-2 rounded-full bg-primary" />
-          </div>
-          <h1 className="text-2xl font-bold">Kanny</h1>
+          <Image
+            src="/logo.png"
+            alt="Kanny logo"
+            width={323}
+            height={122}
+            className="h-10 w-auto"
+            priority
+          />
         </div>
 
         <div className="flex items-center gap-2">
