@@ -57,21 +57,21 @@ export function Sidebar({
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   useEffect(() => {
-    if (isMobile) {
-      if (isCollapsed) {
-        startTransition(() => setIsCollapsed(false));
-      }
-      return;
-    }
+    if (!isMobile) return;
+    if (!isCollapsed) return;
+    startTransition(() => setIsCollapsed(false));
+  }, [isMobile, isCollapsed]);
+
+  useEffect(() => {
+    if (isMobile) return;
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("sidebar-collapsed");
-    if (stored != null) {
-      const nextCollapsed = stored === "true";
-      if (nextCollapsed !== isCollapsed) {
-        startTransition(() => setIsCollapsed(nextCollapsed));
-      }
-    }
-  }, [isMobile, isCollapsed]);
+    if (stored == null) return;
+    const nextCollapsed = stored === "true";
+    startTransition(() => {
+      setIsCollapsed((prev) => (prev === nextCollapsed ? prev : nextCollapsed));
+    });
+  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile) return;
