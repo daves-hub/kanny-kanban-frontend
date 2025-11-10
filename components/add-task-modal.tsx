@@ -29,7 +29,7 @@ export function AddTaskModal({ onAdd, onClose }: AddTaskModalProps) {
     <form onSubmit={handleSubmit} className="flex flex-col justify-end space-y-4">
       <div className="border-dashed-blue bg-blue-50/50 p-5 shadow-sm space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="task-title">Email</Label>
+          <Label htmlFor="task-title">Title</Label>
           <Input
             id="task-title"
             value={title}
