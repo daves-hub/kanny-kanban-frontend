@@ -1,6 +1,6 @@
 import type { Task } from "@/types/kanban";
 import { Edit2, Copy } from "lucide-react";
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -25,8 +25,12 @@ export default function TaskCard({
   const [editedDescription, setEditedDescription] = useState(task.description ?? "");
 
   useEffect(() => {
-    setEditedTitle(task.title);
-    setEditedDescription(task.description ?? "");
+    const nextTitle = task.title;
+    const nextDescription = task.description ?? "";
+    startTransition(() => {
+      setEditedTitle(nextTitle);
+      setEditedDescription(nextDescription);
+    });
   }, [task]);
 
   const resetEdits = () => {

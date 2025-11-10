@@ -51,15 +51,13 @@ export default function ProjectPage({ params }: ProjectPageProps) {
         projectId: selectedProjectId ?? projectId,
       });
 
-      const { lists: _lists, ...boardSummary } = created;
-
       const nextBoard: ProjectBoard = {
-        id: boardSummary.id,
-        name: boardSummary.name,
-        ownerId: boardSummary.ownerId,
-        projectId: boardSummary.projectId,
-        createdAt: boardSummary.createdAt,
-        updatedAt: boardSummary.updatedAt,
+        id: created.id,
+        name: created.name,
+        ownerId: created.ownerId,
+        projectId: created.projectId,
+        createdAt: created.createdAt,
+        updatedAt: created.updatedAt,
       };
 
       setBoards((prev) => [nextBoard, ...prev]);

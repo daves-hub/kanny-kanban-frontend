@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { startTransition, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
@@ -58,15 +58,20 @@ export function Sidebar({
 
   useEffect(() => {
     if (isMobile) {
-      setIsCollapsed(false);
+      if (isCollapsed) {
+        startTransition(() => setIsCollapsed(false));
+      }
       return;
     }
     if (typeof window === "undefined") return;
     const stored = window.localStorage.getItem("sidebar-collapsed");
     if (stored != null) {
-      setIsCollapsed(stored === "true");
+      const nextCollapsed = stored === "true";
+      if (nextCollapsed !== isCollapsed) {
+        startTransition(() => setIsCollapsed(nextCollapsed));
+      }
     }
-  }, [isMobile]);
+  }, [isMobile, isCollapsed]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -75,11 +80,11 @@ export function Sidebar({
   }, [isCollapsed, isMobile]);
 
   useEffect(() => {
-    if (isMobile) return;
-    if (isCollapsed) {
+    if (isMobile || !isCollapsed) return;
+    startTransition(() => {
       setExpandedProjects(new Set());
       setActiveMenu(null);
-    }
+    });
   }, [isCollapsed, isMobile]);
 
   const toggleCollapsed = () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, startTransition } from "react";
 import type { Project } from "@/types/kanban";
 import {
   Dialog,
@@ -30,10 +30,13 @@ export function ProjectModal({ open, onClose, onSave, project }: ProjectModalPro
   }, [project]);
 
   useEffect(() => {
-    if (open) {
-      setName(project?.name ?? "");
-      setDescription(project?.description ?? "");
-    }
+    if (!open) return;
+    const nextName = project?.name ?? "";
+    const nextDescription = project?.description ?? "";
+    startTransition(() => {
+      setName(nextName);
+      setDescription(nextDescription);
+    });
   }, [open, project]);
 
   const handleSave = () => {

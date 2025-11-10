@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, startTransition } from "react";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
@@ -35,6 +35,11 @@ export default function DashboardLayout({
   const [deletingBoard, setDeletingBoard] = useState<Board | null>(null);
   const [boardModalProjectId, setBoardModalProjectId] = useState<number | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const isMobileSidebarOpenRef = useRef(isMobileSidebarOpen);
+
+  useEffect(() => {
+    isMobileSidebarOpenRef.current = isMobileSidebarOpen;
+  }, [isMobileSidebarOpen]);
 
   // Redirect to signin if not authenticated
   useEffect(() => {
@@ -90,8 +95,8 @@ export default function DashboardLayout({
   }, [user]);
 
   useEffect(() => {
-    if (!isMobileSidebarOpen) return;
-    setIsMobileSidebarOpen(false);
+    if (!isMobileSidebarOpenRef.current) return;
+    startTransition(() => setIsMobileSidebarOpen(false));
   }, [pathname]);
 
   // Determine current board and project from URL

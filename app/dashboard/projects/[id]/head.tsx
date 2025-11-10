@@ -1,10 +1,6 @@
 import { PAGE_TITLES, PAGE_DESCRIPTIONS } from "@/lib/metadata";
 
-type ProjectHeadProps = {
-  params: { id: string };
-};
-
-export default function ProjectDetailHead(_props: ProjectHeadProps) {
+export default function ProjectDetailHead() {
   return (
     <>
       <title>{PAGE_TITLES.projects}</title>
