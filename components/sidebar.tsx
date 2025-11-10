@@ -1,17 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { Project, Board } from "@/types/kanban";
-import { 
-  FolderKanban, 
-  LayoutDashboard, 
-  Plus, 
-  ChevronRight, 
+import {
+  FolderKanban,
+  LayoutDashboard,
+  Plus,
+  ChevronRight,
   MoreHorizontal,
   Pencil,
-  Trash2
+  Trash2,
+  Settings as SettingsIcon,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-react";
-import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 type SidebarProps = {
@@ -39,8 +43,34 @@ export function Sidebar({
   onEditBoard,
   onDeleteBoard,
 }: SidebarProps) {
+  const pathname = usePathname();
   const [expandedProjects, setExpandedProjects] = useState<Set<number>>(new Set());
   const [activeMenu, setActiveMenu] = useState<{ type: 'project' | 'board', id: number } | null>(null);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("sidebar-collapsed");
+    if (stored != null) {
+      setIsCollapsed(stored === "true");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("sidebar-collapsed", String(isCollapsed));
+  }, [isCollapsed]);
+
+  useEffect(() => {
+    if (isCollapsed) {
+      setExpandedProjects(new Set());
+      setActiveMenu(null);
+    }
+  }, [isCollapsed]);
+
+  const toggleCollapsed = () => {
+    setIsCollapsed(prev => !prev);
+  };
 
   const toggleProject = (projectId: number) => {
     const newExpanded = new Set(expandedProjects);
@@ -54,27 +84,71 @@ export function Sidebar({
 
   const recentProjects = (projects?.slice(0, 5) || []).filter(p => p && p.id);
   const standaloneBoards = (boards?.filter(b => b && !b.projectId) || []);
+  const isSettingsRoute = pathname?.startsWith("/dashboard/settings");
 
   return (
-    <aside className="flex w-64 flex-col border-r bg-white">
+    <aside
+      className={cn(
+        "flex flex-col border-r bg-white transition-all duration-300",
+        isCollapsed ? "w-20" : "w-64"
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center border-b px-3 py-3",
+          isCollapsed ? "justify-center" : "justify-between"
+        )}
+      >
+        {!isCollapsed && (
+          <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+            Navigation
+          </span>
+        )}
+        <button
+          onClick={toggleCollapsed}
+          className="rounded p-1 transition-colors hover:bg-gray-100"
+        >
+          {isCollapsed ? (
+            <ChevronRightIcon className="size-4 text-gray-600" />
+          ) : (
+            <ChevronLeft className="size-4 text-gray-600" />
+          )}
+          <span className="sr-only">
+            {isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          </span>
+        </button>
+      </div>
       {/* Projects Section */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className={cn("flex-1 overflow-y-auto", isCollapsed ? "p-2" : "p-4")}
+      >
         <div className="mb-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Projects
-            </h2>
-            <div className="flex items-center gap-1">
+          <div
+            className={cn(
+              "mb-3 flex items-center",
+              isCollapsed ? "justify-center" : "justify-between"
+            )}
+          >
+            {!isCollapsed && (
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Projects
+              </h2>
+            )}
+            <div
+              className={cn(
+                "flex items-center gap-1",
+                isCollapsed && "flex-col gap-2"
+              )}
+            >
               <button
                 onClick={onNewProject}
-                className="rounded p-1 transition-colors hover:bg-gray-100"
+                className="flex size-8 items-center justify-center rounded transition-colors hover:bg-gray-100"
                 title="New project"
               >
                 <Plus className="size-4 text-gray-600" />
               </button>
               <Link
                 href="/dashboard/projects"
-                className="rounded p-1 transition-colors hover:bg-gray-100"
+                className="flex size-8 items-center justify-center rounded transition-colors hover:bg-gray-100"
                 title="See all projects"
               >
                 <ChevronRight className="size-4 text-gray-600" />
@@ -95,87 +169,100 @@ export function Sidebar({
                   <div
                     className={cn(
                       "group relative flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors",
-                      isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100"
+                      isActive ? "bg-blue-50 text-blue-600" : "hover:bg-gray-100",
+                      isCollapsed && "justify-center"
                     )}
+                    title={project.name}
                   >
                     <Link
                       href={`/dashboard/projects/${project.id}`}
-                      className="flex flex-1 items-center gap-2"
+                      className={cn(
+                        "flex flex-1 items-center gap-2",
+                        isCollapsed && "justify-center"
+                      )}
                       onClick={(e) => {
                         if ((e.target as HTMLElement).closest('button')) {
                           e.preventDefault();
                         }
                       }}
                     >
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          toggleProject(project.id);
-                        }}
-                        className="flex items-center gap-2"
-                      >
-                        <ChevronRight
-                          className={cn(
-                            "size-4 shrink-0 transition-transform",
-                            isExpanded && "rotate-90"
-                          )}
-                        />
-                      </button>
+                      {!isCollapsed && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleProject(project.id);
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <ChevronRight
+                            className={cn(
+                              "size-4 shrink-0 transition-transform",
+                              isExpanded && "rotate-90"
+                            )}
+                          />
+                        </button>
+                      )}
                       <FolderKanban className="size-4 shrink-0" />
-                      <span className="flex-1 truncate font-medium">
-                        {project.name}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {projectBoards.length}
-                      </span>
+                      {!isCollapsed && (
+                        <span className="flex-1 truncate font-medium">
+                          {project.name}
+                        </span>
+                      )}
+                      {!isCollapsed && (
+                        <span className="text-xs text-gray-500">
+                          {projectBoards.length}
+                        </span>
+                      )}
                     </Link>
 
-                    <div className="relative">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveMenu(
-                            activeMenu?.type === 'project' && activeMenu?.id === project.id 
-                              ? null 
-                              : { type: 'project', id: project.id }
-                          );
-                        }}
-                        className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
-                      >
-                        <MoreHorizontal className="size-3.5" />
-                      </button>
+                    {!isCollapsed && (
+                      <div className="relative">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenu(
+                              activeMenu?.type === 'project' && activeMenu?.id === project.id 
+                                ? null 
+                                : { type: 'project', id: project.id }
+                            );
+                          }}
+                          className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
+                        >
+                          <MoreHorizontal className="size-3.5" />
+                        </button>
 
-                      {activeMenu?.type === 'project' && activeMenu?.id === project.id && (
-                        <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border bg-white py-1 shadow-lg">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditProject(project);
-                              setActiveMenu(null);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100"
-                          >
-                            <Pencil className="size-3.5" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteProject(project);
-                              setActiveMenu(null);
-                            }}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                          >
-                            <Trash2 className="size-3.5" />
-                            Delete
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                        {activeMenu?.type === 'project' && activeMenu?.id === project.id && (
+                          <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border bg-white py-1 shadow-lg">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onEditProject(project);
+                                setActiveMenu(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100"
+                            >
+                              <Pencil className="size-3.5" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteProject(project);
+                                setActiveMenu(null);
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="size-3.5" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {isExpanded && projectBoards.length > 0 && (
+                  {!isCollapsed && isExpanded && projectBoards.length > 0 && (
                     <div className="ml-6 mt-1 space-y-1 border-l border-gray-200 pl-3">
                       {projectBoards.filter(Boolean).map((board) => {
                         if (!board || !board.id) return null;
@@ -272,13 +359,20 @@ export function Sidebar({
 
         {/* Standalone Boards Section */}
         <div>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              Boards
-            </h2>
+          <div
+            className={cn(
+              "mb-3 flex items-center",
+              isCollapsed ? "justify-center" : "justify-between"
+            )}
+          >
+            {!isCollapsed && (
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                Boards
+              </h2>
+            )}
             <button
               onClick={() => onNewBoard(null)}
-              className="rounded p-1 transition-colors hover:bg-gray-100"
+              className="flex size-8 items-center justify-center rounded transition-colors hover:bg-gray-100"
               title="New board"
             >
               <Plus className="size-4 text-gray-600" />
@@ -297,55 +391,61 @@ export function Sidebar({
                     "group relative flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors",
                     currentBoardId === board.id
                       ? "bg-blue-50 text-blue-600"
-                      : "hover:bg-gray-100"
+                      : "hover:bg-gray-100",
+                    isCollapsed && "justify-center"
                   )}
+                  title={board.name}
                 >
                   <LayoutDashboard className="size-4 shrink-0" />
-                  <span className="flex-1 truncate font-medium">{board.name}</span>
+                  {!isCollapsed && (
+                    <span className="flex-1 truncate font-medium">{board.name}</span>
+                  )}
 
-                <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setActiveMenu(
-                        activeMenu?.type === 'board' && activeMenu?.id === board.id
-                          ? null
-                          : { type: 'board', id: board.id }
-                      );
-                    }}
-                    className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
-                  >
-                    <MoreHorizontal className="size-3.5" />
-                  </button>
-
-                  {activeMenu?.type === 'board' && activeMenu?.id === board.id && (
-                    <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border bg-white py-1 shadow-lg">
+                  {!isCollapsed && (
+                    <div className="relative">
                       <button
                         onClick={(e) => {
                           e.preventDefault();
-                          onEditBoard(board);
-                          setActiveMenu(null);
+                          setActiveMenu(
+                            activeMenu?.type === 'board' && activeMenu?.id === board.id
+                              ? null
+                              : { type: 'board', id: board.id }
+                          );
                         }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100"
+                        className="rounded p-1 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100"
                       >
-                        <Pencil className="size-3.5" />
-                        Edit
+                        <MoreHorizontal className="size-3.5" />
                       </button>
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onDeleteBoard(board);
-                          setActiveMenu(null);
-                        }}
-                        className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
-                      >
-                        <Trash2 className="size-3.5" />
-                        Delete
-                      </button>
+
+                      {activeMenu?.type === 'board' && activeMenu?.id === board.id && (
+                        <div className="absolute right-0 top-full z-10 mt-1 w-40 rounded-lg border bg-white py-1 shadow-lg">
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onEditBoard(board);
+                              setActiveMenu(null);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-gray-100"
+                          >
+                            <Pencil className="size-3.5" />
+                            Edit
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              onDeleteBoard(board);
+                              setActiveMenu(null);
+                            }}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="size-3.5" />
+                            Delete
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              </Link>
+                </Link>
               );
             })}
 
@@ -371,6 +471,26 @@ export function Sidebar({
           onClick={() => setActiveMenu(null)}
         />
       )}
+
+      <div
+        className={cn(
+          "border-t",
+          isCollapsed ? "px-2 py-3" : "px-4 py-3"
+        )}
+      >
+        <Link
+          href="/dashboard/settings"
+          className={cn(
+            "flex items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-gray-100",
+            isSettingsRoute ? "bg-blue-50 text-blue-600" : "text-gray-700",
+            isCollapsed && "justify-center"
+          )}
+          title="Settings"
+        >
+          <SettingsIcon className="size-4 shrink-0" />
+          {!isCollapsed && <span className="font-medium">Settings</span>}
+        </Link>
+      </div>
     </aside>
   );
 }

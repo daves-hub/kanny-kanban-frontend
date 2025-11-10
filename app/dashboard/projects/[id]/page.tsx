@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { boardService } from "@/services/boards.service";
 import { projectService } from "@/services/projects.service";
 import { BoardModal } from "@/components/board-modal";
+import { Input } from "@/components/ui/input";
 
 type ProjectPageProps = {
   params: Promise<{
@@ -117,7 +118,7 @@ export default function ProjectPage({ params }: ProjectPageProps) {
           {/* Search */}
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
-            <input
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}

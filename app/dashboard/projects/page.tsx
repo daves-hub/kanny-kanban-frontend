@@ -9,6 +9,7 @@ import { projectService } from "@/services/projects.service";
 import { boardService } from "@/services/boards.service";
 import { ProjectModal } from "@/components/project-modal";
 import { ConfirmationDialog } from "@/components/confirmation-dialog";
+import { Input } from "@/components/ui/input";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -144,7 +145,7 @@ export default function ProjectsPage() {
           {/* Search */}
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 size-5 -translate-y-1/2 text-gray-400" />
-            <input
+            <Input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
