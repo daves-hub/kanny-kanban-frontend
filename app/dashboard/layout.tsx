@@ -90,10 +90,9 @@ export default function DashboardLayout({
   }, [user]);
 
   useEffect(() => {
-    if (isMobileSidebarOpen) {
-      setIsMobileSidebarOpen(false);
-    }
-  }, [pathname, isMobileSidebarOpen]);
+    if (!isMobileSidebarOpen) return;
+    setIsMobileSidebarOpen(false);
+  }, [pathname]);
 
   // Determine current board and project from URL
   const currentBoardId = pathname?.match(/\/board\/(\d+)/)?.[1] 
