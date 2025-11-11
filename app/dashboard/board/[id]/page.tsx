@@ -46,6 +46,7 @@ export default function BoardPage({ params }: BoardPageProps) {
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [isDeletingTask, setIsDeletingTask] = useState(false);
   const [collapsedLists, setCollapsedLists] = useState<Set<number>>(new Set());
   const [isMobileView, setIsMobileView] = useState(false);
   const wasMobileRef = useRef<boolean | null>(null);
@@ -250,25 +251,29 @@ export default function BoardPage({ params }: BoardPageProps) {
   };
 
   const handleDeleteTask = async () => {
-    if (taskToDelete) {
-      try {
-        await taskService.delete(taskToDelete.id);
-        
-        // Update local state
-        setBoard(prev => {
-          if (!prev) return prev;
-          return {
-            ...prev,
-            lists: prev.lists.map(l => ({
-              ...l,
-              tasks: l.tasks.filter(t => t.id !== taskToDelete.id),
-            })),
-          };
-        });
-        setTaskToDelete(null);
-      } catch (error) {
-        console.error("Failed to delete task:", error);
-      }
+    if (!taskToDelete || isDeletingTask) return;
+    const deletingTaskId = taskToDelete.id;
+    setIsDeletingTask(true);
+
+    try {
+      await taskService.delete(deletingTaskId);
+      
+      // Update local state after a successful deletion
+      setBoard(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          lists: prev.lists.map(l => ({
+            ...l,
+            tasks: l.tasks.filter(t => t.id !== deletingTaskId),
+          })),
+        };
+      });
+      setTaskToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+    } finally {
+      setIsDeletingTask(false);
     }
   };
 
@@ -567,6 +572,7 @@ export default function BoardPage({ params }: BoardPageProps) {
           open={!!taskToDelete}
           onClose={() => setTaskToDelete(null)}
           onConfirm={handleDeleteTask}
+          isDeleting={isDeletingTask}
         />
 
         {/* Drag Overlay - follows mouse cursor */}
