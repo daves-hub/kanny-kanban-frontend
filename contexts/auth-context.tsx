@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import type { User } from "@/types/kanban";
-import { apiClient } from "@/lib/api";
+import { apiClient, ApiError } from "@/lib/api";
 
 interface AuthContextType {
   user: User | null;
@@ -111,11 +111,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         } catch (error) {
           console.error("Token validation failed:", error);
-          clearAuthData();
+          if (error instanceof ApiError && error.status === 401) {
+            clearAuthData();
+          }
         }
       } catch (error) {
         console.error("Error loading user:", error);
-        clearAuthData();
+        if (error instanceof ApiError && error.status === 401) {
+          clearAuthData();
+        }
       } finally {
         setLoading(false);
       }
@@ -186,7 +190,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Failed to refresh user:", error);
-      signout();
+      if (error instanceof ApiError && error.status === 401) {
+        signout();
+      }
     }
   }, [extractUser, isTokenValid, signout]);
 
