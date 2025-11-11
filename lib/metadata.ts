@@ -16,6 +16,7 @@ export const PAGE_TITLES = {
   board: (name?: string) => name ? `${name} — Board · Kanny Kanban` : "Board — Kanny Kanban",
   signin: "Sign in — Kanny Kanban",
   signup: "Sign up — Kanny Kanban",
+  forgotPassword: "Forgot password — Kanny Kanban",
   settings: "Settings — Kanny Kanban",
 } as const;
 
@@ -26,5 +27,6 @@ export const PAGE_DESCRIPTIONS = {
   board: (name?: string) => name ? `${name} kanban tasks and workflow` : "Your kanban board",
   signin: "Sign in to your Kanny Kanban account",
   signup: "Create a Kanny Kanban account",
+  forgotPassword: "Placeholder flow for resetting your Kanny Kanban password",
   settings: "Manage account and workspace settings",
 } as const;
